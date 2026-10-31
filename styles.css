@@ -311,7 +311,63 @@
     .chartbox { height: 230px; }
     .marca { font-size: 19px; }
   }
-  /* ---- v11: accesibilidad ---- */
+  /* ---- v18: temas visuales y modo gimnasio ---- */
+/* Acero: grises y un acento naranja. */
+[data-tema="acero"] {
+  --bg: #0c0d10; --panel: #15171c; --panel2: #1b1e25; --line: #2a2e38;
+  --txt: #eef0f4; --mut: #8d93a3; --in: #101216;
+  --cyan: #ff8a3d; --mag: #c7cdd9; --lime: #ffb84d; --sun: #ffd27a; --vio: #6b7280; --red: #ff5c5c;
+}
+[data-tema="acero"] body::before {
+  background: radial-gradient(700px 420px at 12% -8%, rgba(255,138,61,.12), transparent 60%),
+              radial-gradient(640px 460px at 100% 6%, rgba(199,205,217,.08), transparent 60%);
+}
+[data-tema="acero"] .card { box-shadow: 0 0 14px rgba(255,138,61,.08); }
+
+/* Retro arcade: ámbar tipo pantalla de terminal, con tipografía monoespaciada. */
+[data-tema="retro"] {
+  --bg: #0d0802; --panel: #1a1205; --panel2: #20170a; --line: #3d2b0c;
+  --txt: #ffe8b3; --mut: #a88a4f; --in: #120c03;
+  --cyan: #ffb000; --mag: #ff6a00; --lime: #ffd54a; --sun: #ffe9a8; --vio: #b8860b; --red: #ff4d2e;
+  font-family: "Courier New", Consolas, monospace;
+}
+[data-tema="retro"] body { font-family: "Courier New", Consolas, monospace; }
+[data-tema="retro"] .marca, [data-tema="retro"] .kpi b, [data-tema="retro"] .reloj { font-family: "Courier New", Consolas, monospace; font-weight: 900; }
+[data-tema="retro"] body::before { background: repeating-linear-gradient(0deg, rgba(255,176,0,.04) 0 2px, transparent 2px 4px); animation: none; }
+[data-tema="retro"] body::after { display: none; }
+[data-tema="retro"] .card { border-radius: 4px; }
+
+/* Modo gimnasio: textos, botones y números más grandes para usar con las manos transpiradas. */
+body.gym input, body.gym select { font-size: 20px; padding: 18px 16px; }
+body.gym .btn { font-size: 17px; padding: 20px 22px; }
+body.gym .chip { font-size: 16px; padding: 13px 18px; }
+body.gym .kpi b { font-size: 40px; }
+body.gym .card h2 { font-size: 17px; }
+body.gym td, body.gym th { font-size: 16px; padding: 14px 6px; }
+body.gym .mut { font-size: 15px; }
+
+/* Notas de la sesión */
+textarea {
+  background: var(--in); color: var(--txt); border: 1px solid rgba(0,240,255,.22); border-radius: 14px;
+  padding: 13px 14px; font-size: 16px; font-family: inherit; width: 100%; resize: vertical; outline: none;
+}
+textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,240,255,.15); }
+body.gym textarea { font-size: 20px; }
+
+/* Mapa corporal */
+#mapa-svg [data-g] { fill: #fff; fill-opacity: .06; stroke: var(--line); stroke-width: 1.5; transition: fill-opacity .6s; }
+#mapa-svg .cabeza { fill: rgba(255,255,255,.1); stroke: var(--line); stroke-width: 1.5; }
+#mapa-svg .mapa-txt { fill: var(--mut); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+
+/* Animaciones solo en momentos clave: se apagan las que corren todo el tiempo.
+   Quedan los hitos, los récords y el fin del descanso. */
+body.calmo::before,
+body.calmo .marca .g,
+body.calmo .kpi::after,
+body.calmo .barra > div,
+body.calmo .racha .llama { animation: none !important; }
+
+/* ---- v11: accesibilidad ---- */
 :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; box-shadow: 0 0 0 6px rgba(0,240,255,.15); }
 button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: none; }
 

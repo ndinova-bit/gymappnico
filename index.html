@@ -138,6 +138,7 @@
         <tbody id="s-tabla"></tbody>
       </table>
       <p class="mut" id="s-kcal"></p>
+      <textarea id="s-nota" rows="2" maxlength="300" placeholder="Nota de la sesión: cómo te sentiste, sueño, molestias…" aria-label="Nota de la sesión"></textarea>
     </div>
 
     <div class="card">
@@ -209,6 +210,34 @@
     <div class="card">
       <h2>Progresión <small>qué hacer en tu próxima sesión</small></h2>
       <div id="plan"></div>
+    </div>
+
+    <div class="card">
+      <h2>Mapa corporal <small>volumen de los últimos 7 días</small></h2>
+      <svg id="mapa-svg" viewBox="0 0 360 292" role="img" aria-label="Mapa corporal con el volumen por grupo muscular" style="width:100%;max-height:360px">
+        <circle class="cabeza" cx="90" cy="24" r="16"/>
+        <ellipse data-g="Hombros" cx="58" cy="60" rx="17" ry="12"/>
+        <ellipse data-g="Hombros" cx="122" cy="60" rx="17" ry="12"/>
+        <rect data-g="Pecho" x="68" y="58" width="44" height="30" rx="12"/>
+        <rect data-g="Brazos" x="36" y="74" width="15" height="68" rx="7"/>
+        <rect data-g="Brazos" x="129" y="74" width="15" height="68" rx="7"/>
+        <rect data-g="Core" x="72" y="92" width="36" height="50" rx="10"/>
+        <rect data-g="Piernas" x="70" y="148" width="19" height="118" rx="9"/>
+        <rect data-g="Piernas" x="91" y="148" width="19" height="118" rx="9"/>
+        <circle class="cabeza" cx="270" cy="24" r="16"/>
+        <ellipse data-g="Hombros" cx="238" cy="60" rx="17" ry="12"/>
+        <ellipse data-g="Hombros" cx="302" cy="60" rx="17" ry="12"/>
+        <rect data-g="Espalda" x="248" y="58" width="44" height="62" rx="12"/>
+        <rect data-g="Brazos" x="216" y="74" width="15" height="68" rx="7"/>
+        <rect data-g="Brazos" x="309" y="74" width="15" height="68" rx="7"/>
+        <ellipse data-g="Glúteos" cx="261" cy="136" rx="12" ry="14"/>
+        <ellipse data-g="Glúteos" cx="279" cy="136" rx="12" ry="14"/>
+        <rect data-g="Piernas" x="250" y="156" width="19" height="110" rx="9"/>
+        <rect data-g="Piernas" x="271" y="156" width="19" height="110" rx="9"/>
+        <text x="90" y="286" text-anchor="middle" class="mapa-txt">Frente</text>
+        <text x="270" y="286" text-anchor="middle" class="mapa-txt">Espalda</text>
+      </svg>
+      <div id="mapa-lista"></div>
     </div>
 
     <div class="card">
@@ -314,6 +343,24 @@
         <div>
           <div class="mut" style="margin-bottom:6px">Conexión</div>
           <button class="btn sec" id="pref-offline" style="width:100%">Modo automático</button>
+        </div>
+      </div>
+      <div class="grid">
+        <div>
+          <div class="mut" style="margin-bottom:6px">Tema visual</div>
+          <select id="pref-tema">
+            <option value="neon">Neón</option>
+            <option value="acero">Acero</option>
+            <option value="retro">Retro arcade</option>
+          </select>
+        </div>
+        <div>
+          <div class="mut" style="margin-bottom:6px">Pantalla de gimnasio</div>
+          <button class="btn sec" id="pref-gym" style="width:100%">Desactivada</button>
+        </div>
+        <div>
+          <div class="mut" style="margin-bottom:6px">Animaciones</div>
+          <button class="btn sec" id="pref-calmo" style="width:100%">Solo momentos clave</button>
         </div>
       </div>
       <p class="mut">El modo sin conexión guarda todo en el celular y lo sube cuando vuelve la red. Los días por semana definen tu racha semanal.</p>
