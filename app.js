@@ -33,6 +33,12 @@ function hoy() {
 }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function e1rm(kg, reps) { return reps === 1 ? kg : kg * (1 + reps / 30); }
+// Tipo de serie: el elegido o, si no hay, el que corresponde por repeticiones.
+const TIPOS = ["fuerza", "hipertrofia", "resistencia"];
+function tipoDe(x) {
+  if (x.tipo_serie) return x.tipo_serie;
+  return x.reps <= 5 ? "fuerza" : x.reps <= 12 ? "hipertrofia" : "resistencia";
+}
 function leerJSON(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch (e) { return def; } }
 function guardarTodo() {
   localStorage.setItem(K_CACHE, JSON.stringify(db));
@@ -138,7 +144,7 @@ async function sincronizar() {
 async function descargar() {
   const [r, s, p, e] = await Promise.all([
     sb.from("rutinas").select("id,nombre,ejercicios,created_at").order("created_at"),
-    sb.from("sesiones").select("id,fecha,series(id,ejercicio,reps,kg,rpe,descanso_seg,created_at)").order("fecha"),
+    sb.from("sesiones").select("id,fecha,series(id,ejercicio,reps,kg,rpe,descanso_seg,tipo_serie,created_at)").order("fecha"),
     sb.from("peso").select("fecha,kg").order("fecha"),
     sb.from("ejercicios").select("id,user_id,nombre,grupo,tipo,met").order("nombre")
   ]);
@@ -467,9 +473,11 @@ $("s-agregar").onclick = () => {
   if (rpe !== null && (isNaN(rpe) || rpe < 1 || rpe > 10)) return alert("El RPE tiene que ser un número del 1 al 10. Si no lo sabés, dejalo vacío.");
   const ses = asegurarSesion();
   const previo = mejorKgPrevio(ej, ses.id);
+  const elegido = $("s-tipo").value;
+  const tipo = elegido === "auto" ? tipoDe({ reps }) : elegido;
   const filas = [];
   for (let i = 0; i < n; i++) {
-    filas.push({ id: uid(), user_id: user.id, sesion_id: ses.id, ejercicio: ej, reps, kg, rpe, descanso_seg: descansoPendiente, created_at: new Date().toISOString() });
+    filas.push({ id: uid(), user_id: user.id, sesion_id: ses.id, ejercicio: ej, reps, kg, rpe, descanso_seg: descansoPendiente, tipo_serie: tipo, created_at: new Date().toISOString() });
   }
   ses.series.push(...filas);
   encolar({ t: "ins", tabla: "series", fila: filas.map(({ created_at, ...f }) => f) });
@@ -514,9 +522,13 @@ function editarSerie(sesId, serieId) {
   if (kgNuevo === null) return;
   const repsNuevas = prompt("Repeticiones", s.reps);
   if (repsNuevas === null) return;
+  const tipoNuevo = prompt("Tipo: fuerza, hipertrofia o resistencia", tipoDe(s));
+  if (tipoNuevo === null) return;
   s.kg = num(kgNuevo) || 0;
   s.reps = parseInt(repsNuevas) || s.reps;
-  encolar({ t: "upd", tabla: "series", id: serieId, cambios: { kg: s.kg, reps: s.reps } });
+  const t = tipoNuevo.trim().toLowerCase();
+  s.tipo_serie = TIPOS.includes(t) ? t : tipoDe(s);
+  encolar({ t: "upd", tabla: "series", id: serieId, cambios: { kg: s.kg, reps: s.reps, tipo_serie: s.tipo_serie } });
 }
 
 function cambiarFecha(sesId, fecha) {
@@ -870,8 +882,9 @@ const sesionesConSeries = () => db.sesiones.filter(s => s.series.length);
 const grupoDe = nombre => { const x = (db.ejercicios || []).find(e => e.nombre === nombre); return x ? x.grupo : "Otro"; };
 const promedio = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
 const mmss = s => s === null ? "—" : fmtTiempo(Math.round(s));
+// El 1RM solo sale de series de fuerza: en hipertrofia las repeticiones altas lo distorsionan.
 function e1rmSesion(ses, ej) {
-  const xs = ses.series.filter(x => x.ejercicio === ej);
+  const xs = ses.series.filter(x => x.ejercicio === ej && tipoDe(x) === "fuerza");
   return xs.length ? Math.max(...xs.map(x => e1rm(x.kg, x.reps))) : null;
 }
 function ejerciciosEnSesiones() {
@@ -930,7 +943,7 @@ function renderEstadisticas() {
 // Compara el 1RM promedio de las primeras sesiones con el de las últimas.
 function rankingEjercicios() {
   return ejerciciosEnSesiones().map(ej => {
-    const ses = sesionesConSeries().filter(s => s.series.some(x => x.ejercicio === ej));
+    const ses = sesionesConSeries().filter(s => s.series.some(x => x.ejercicio === ej && tipoDe(x) === "fuerza"));
     if (ses.length < 2) return null;
     const vals = ses.map(s => e1rmSesion(s, ej));
     const k = Math.min(3, Math.floor(ses.length / 2));
@@ -972,10 +985,10 @@ function recomendaciones() {
   const ses = sesionesConSeries();
   const out = [];
   ejerciciosEnSesiones().forEach(ej => {
-    const hist = ses.filter(s => s.series.some(x => x.ejercicio === ej));
+    const hist = ses.filter(s => s.series.some(x => x.ejercicio === ej && tipoDe(x) === "fuerza"));
     if (!hist.length) return;
     const ult = hist[hist.length - 1];
-    const xs = ult.series.filter(x => x.ejercicio === ej);
+    const xs = ult.series.filter(x => x.ejercicio === ej && tipoDe(x) === "fuerza");
     const kgMax = Math.max(...xs.map(x => x.kg));
     const repsMin = Math.min(...xs.map(x => x.reps));
     const rpeProm = promedio(xs.map(x => x.rpe).filter(v => v != null));
@@ -1017,11 +1030,40 @@ function recomendaciones() {
   return out;
 }
 
+// Ejercicios de hipertrofia: la progresión se mira en repeticiones, no en 1RM.
+function recHipertrofia(ej, ses) {
+  const hist = ses.filter(s => s.series.some(x => x.ejercicio === ej && tipoDe(x) === "hipertrofia"));
+  if (!hist.length) return null;
+  const xs = hist[hist.length - 1].series.filter(x => x.ejercicio === ej && tipoDe(x) === "hipertrofia");
+  const kgMax = Math.max(...xs.map(x => x.kg));
+  const repsMin = Math.min(...xs.map(x => x.reps));
+  const rpeProm = promedio(xs.map(x => x.rpe).filter(v => v != null));
+  if (rpeProm !== null && rpeProm >= 9) {
+    return { ej, tipo: "mantener", consejo: "Las series están muy cerca del fallo: mantené la carga y buscá una repetición más.", objetivo: `${fmt(kgMax)} kg · mismas reps` };
+  }
+  if (repsMin >= 12 && kgMax > 0) {
+    return { ej, tipo: "sube", consejo: "Llegaste al rango alto en todas las series: subí la carga y volvé a empezar desde el rango bajo.", objetivo: `${fmt(kgMax + 2.5)} kg × ${repsMin} reps` };
+  }
+  return { ej, tipo: "reps", consejo: "Sumá una repetición por serie hasta llegar a 12 y después subí la carga.", objetivo: `${fmt(kgMax)} kg · ${repsMin + 1} reps mínimas` };
+}
+
+// Fuerza primero; los ejercicios que solo tienen hipertrofia usan la regla de repeticiones.
+function recomendacionesTodas() {
+  const ses = sesionesConSeries();
+  const out = recomendaciones();
+  ejerciciosEnSesiones().forEach(ej => {
+    if (out.some(x => x.ej === ej)) return;
+    const r = recHipertrofia(ej, ses);
+    if (r) out.push(r);
+  });
+  return out;
+}
+
 $("so-analizar").onclick = () => {
   const orden = { baja: 0, estancado: 1, mantener: 2, reps: 3, sube: 4 };
   const etiqueta = { baja: "Bajó", estancado: "Estancado", mantener: "Al límite", reps: "Sumá reps", sube: "Subí carga" };
   const color = { baja: "neg", estancado: "", mantener: "", reps: "", sube: "pos" };
-  const r = recomendaciones().sort((a, b) => orden[a.tipo] - orden[b.tipo]);
+  const r = recomendacionesTodas().sort((a, b) => orden[a.tipo] - orden[b.tipo]);
   $("so-resultado").innerHTML = r.length ? `
     <p class="mut">Sobrecarga progresiva: subir de a poco la carga, las repeticiones o las series. Orientativo; no reemplaza a tu profesor.</p>
     ${r.map(x => `
@@ -1171,7 +1213,7 @@ function htmlPlan(lista) {
     </div>`).join("");
 }
 function renderPlan() {
-  const r = recomendaciones().sort((a, b) => ORDEN_PLAN[a.tipo] - ORDEN_PLAN[b.tipo]);
+  const r = recomendacionesTodas().sort((a, b) => ORDEN_PLAN[a.tipo] - ORDEN_PLAN[b.tipo]);
   $("plan").innerHTML = r.length ? htmlPlan(r)
     : '<p class="mut">Cuando tengas 2 sesiones con el mismo ejercicio, acá aparece qué hacer la próxima vez.</p>';
 }
@@ -1186,7 +1228,7 @@ function renderPasos() {
 }
 function renderObjetivo() {
   const ej = $("s-ej").value.trim();
-  const r = ej ? recomendaciones().find(x => x.ej === ej) : null;
+  const r = ej ? recomendacionesTodas().find(x => x.ej === ej) : null;
   $("s-objetivo").classList.toggle("hidden", !r);
   if (r) $("s-objetivo").innerHTML = `Próxima vez en <b>${esc(ej)}</b>: ${esc(r.objetivo)}<div class="mut" style="margin-top:4px">${esc(r.consejo)}</div>`;
 }
