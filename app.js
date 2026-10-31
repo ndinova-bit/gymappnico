@@ -707,6 +707,49 @@ const SLOTS = {
   legs: ["Sentadilla", "Peso muerto rumano", "Hip thrust", "Extensión de piernas", "Elevación de talones"],
   arms: ["Curl de bíceps con barra", "Curl martillo", "Extensión de tríceps en polea", "Press francés", "Elevaciones laterales"]
 };
+// Fuerza: básicos con carga alta. Hipertrofia: más variedad y ejercicios de aislamiento.
+const POOLS = {
+  fuerza: {
+    fb: ["Sentadilla", "Press banca", "Remo con barra", "Press militar", "Peso muerto"],
+    sup: ["Press banca", "Remo con barra", "Press militar", "Dominadas", "Press inclinado con mancuernas"],
+    inf: ["Sentadilla", "Peso muerto rumano", "Prensa 45°", "Estocadas", "Hip thrust"],
+    push: ["Press banca", "Press militar", "Press inclinado con mancuernas", "Fondos en paralelas", "Press francés"],
+    pull: ["Dominadas", "Remo con barra", "Peso muerto", "Remo con mancuerna", "Jalón al pecho"],
+    legs: ["Sentadilla", "Peso muerto rumano", "Prensa 45°", "Estocadas", "Hip thrust"],
+    arms: ["Press francés", "Curl de bíceps con barra", "Fondos en paralelas", "Curl martillo", "Extensión de tríceps en polea"]
+  },
+  hipertrofia: {
+    fb: ["Aperturas con mancuernas", "Jalón al pecho", "Elevaciones laterales", "Curl de piernas", "Extensión de piernas", "Plancha"],
+    sup: ["Aperturas con mancuernas", "Jalón al pecho", "Elevaciones laterales", "Curl martillo", "Extensión de tríceps en polea"],
+    inf: ["Hip thrust", "Curl de piernas", "Extensión de piernas", "Elevación de talones", "Estocadas"],
+    push: ["Aperturas con mancuernas", "Elevaciones laterales", "Extensión de tríceps en polea", "Press inclinado con mancuernas", "Press militar"],
+    pull: ["Jalón al pecho", "Remo con mancuerna", "Pájaros (elevación posterior)", "Curl de bíceps con barra", "Curl martillo"],
+    legs: ["Hip thrust", "Curl de piernas", "Extensión de piernas", "Elevación de talones", "Prensa 45°"],
+    arms: ["Curl martillo", "Curl de bíceps con barra", "Extensión de tríceps en polea", "Press francés", "Elevaciones laterales"]
+  }
+};
+// Elige hasta 5 ejercicios para el día. Evita los ya usados en el plan mientras el catálogo alcance.
+function elegirEjercicios(tipoDia, objetivo, usados, cat) {
+  const elegidos = [];
+  const tomar = (lista, max, soloNuevos) => {
+    for (const n of lista) {
+      if (elegidos.length >= max) break;
+      if (!cat.has(n) || elegidos.includes(n)) continue;
+      if (soloNuevos && usados.has(n)) continue;
+      elegidos.push(n);
+    }
+  };
+  if (objetivo === "ambos") {
+    tomar(POOLS.fuerza[tipoDia], 1, true);
+    tomar(POOLS.hipertrofia[tipoDia], 5, true);
+  } else {
+    tomar(POOLS[objetivo][tipoDia], 5, true);
+  }
+  // Si el catálogo no alcanza para variar, completa aunque se repitan.
+  if (elegidos.length < 3) tomar([...POOLS.fuerza[tipoDia], ...POOLS.hipertrofia[tipoDia]], 5, false);
+  return elegidos;
+}
+
 const GUIA = {
   fuerza: "Primer ejercicio de cada día: 4 series de 3 a 5 repeticiones, RPE 8, con 2 a 3 minutos de descanso. Los demás: 3 series de 8 a 10 repeticiones.",
   hipertrofia: "Todos los ejercicios: 3 series de 8 a 12 repeticiones, RPE 7 a 8, con 90 segundos de descanso.",
@@ -732,11 +775,14 @@ $("pl-generar").onclick = () => {
   const nombresCat = new Set(catalogo().map(e => e.nombre));
   const plantilla = PLANTILLAS[Math.min(plDias.length, 6)];
   const creadas = [];
+  const usados = new Set();
+  const etiqueta = { fuerza: "fuerza", hipertrofia: "hipertrofia", ambos: "fuerza + hipertrofia" }[plObjetivo];
   plDias.slice(0, plantilla.length).forEach((dia, i) => {
     const [titulo, tipoDia] = plantilla[i];
-    const ejercicios = SLOTS[tipoDia].filter(n => nombresCat.has(n)).slice(0, 5);
+    const ejercicios = elegirEjercicios(tipoDia, plObjetivo, usados, nombresCat);
     if (!ejercicios.length) return;
-    const nombre = `${DIAS_NOMBRE[dia]} · ${titulo}`;
+    ejercicios.forEach(n => usados.add(n));
+    const nombre = `${DIAS_NOMBRE[dia]} · ${titulo} (${etiqueta})`;
     const id = uid();
     db.rutinas.push({ id, nombre, ejercicios });
     encolar({ t: "ins", tabla: "rutinas", fila: { id, user_id: user.id, nombre, ejercicios } });
