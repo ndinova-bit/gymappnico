@@ -236,6 +236,55 @@
   }
   .toast.ver { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  /* ---- v6: sesión, hitos, rachas y animaciones ---- */
+  .chartbox { height: clamp(200px, 38vh, 340px); }
+  .pasos { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .paso {
+    flex: 1 1 90px; text-align: center; padding: 9px 6px; border-radius: 14px; font-size: 11px; font-weight: 800;
+    letter-spacing: 1px; text-transform: uppercase; color: var(--mut); border: 1px dashed rgba(127,139,176,.35);
+    transition: all .3s;
+  }
+  .paso.ok { color: var(--lime); border: 1px solid rgba(182,255,59,.55); background: rgba(182,255,59,.08); box-shadow: 0 0 12px rgba(182,255,59,.25); }
+  .objetivo {
+    border-radius: 16px; padding: 12px 14px; margin: 10px 0 14px; font-size: 14px;
+    background: linear-gradient(120deg, rgba(255,230,0,.12), rgba(255,43,214,.08)); border: 1px solid rgba(255,230,0,.35);
+  }
+  .objetivo b { color: var(--sun); }
+  .cronos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .reloj-box { border-radius: 18px; padding: 14px 10px; background: rgba(0,0,0,.35); border: 1px solid rgba(0,240,255,.25); text-align: center; }
+  .reloj-box small { display: block; color: var(--mut); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
+  .reloj { font-family: "Arial Black", Impact, sans-serif; font-size: clamp(32px, 9vw, 50px); color: var(--cyan); text-shadow: 0 0 18px currentColor; font-variant-numeric: tabular-nums; }
+  .reloj.fin { color: var(--lime); animation: latido .9s ease-in-out infinite; }
+  @keyframes latido { 50% { transform: scale(1.07); } }
+  .barra.gruesa { height: 18px; }
+  .hito-pop {
+    position: fixed; left: 50%; top: 40%; z-index: 40; padding: 18px 24px; border-radius: 22px; text-align: center;
+    background: rgba(8,10,22,.95); border: 2px solid var(--sun); box-shadow: 0 0 40px rgba(255,230,0,.5);
+    pointer-events: none; max-width: 88vw; transform: translate(-50%, -50%);
+    animation: hito 3.4s cubic-bezier(.2,.8,.2,1) forwards;
+  }
+  .hito-pop .estrella { font-size: 34px; display: block; animation: latido 1s ease-in-out infinite; }
+  .hito-pop b { display: block; font-family: "Arial Black", Impact, sans-serif; font-size: clamp(18px, 5vw, 26px); color: var(--sun); letter-spacing: 1px; margin-top: 4px; }
+  .hito-pop span { color: var(--txt); font-size: 14px; }
+  @keyframes hito {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); }
+    14% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+    24% { transform: translate(-50%, -50%) scale(1); }
+    78% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -70%) scale(.95); }
+  }
+  .rachas { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .racha {
+    border-radius: 18px; padding: 14px; text-align: center; border: 1px solid rgba(255,43,214,.4);
+    background: linear-gradient(160deg, rgba(255,43,214,.14), rgba(8,10,22,.6)); box-shadow: 0 0 16px rgba(255,43,214,.15);
+  }
+  .racha small { color: var(--mut); font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 800; }
+  .racha b { display: block; font-family: "Arial Black", Impact, sans-serif; font-size: clamp(24px, 7vw, 34px); color: var(--mag); margin-top: 6px; }
+  .racha .llama { display: inline-block; animation: latido 1.6s ease-in-out infinite; }
+  .plan-item { display: flex; justify-content: space-between; gap: 10px; align-items: center; border-top: 1px solid var(--line); padding: 12px 0; flex-wrap: wrap; }
+  .plan-item b { color: var(--lime); }
+  .modo-off { background: linear-gradient(90deg, #5b6790, #7f8bb0) !important; color: #05060d !important; }
+
   @media (max-width: 600px) {
     main { padding: 12px; }
     .card { padding: 16px; border-radius: 18px; }
@@ -309,12 +358,18 @@
   <!-- SESIÓN -->
   <section id="vista-sesion">
     <div class="card">
-      <h2>Registrar entrenamiento</h2>
+      <h2>Registrar entrenamiento <small id="s-estado-sesion">sin sesión</small></h2>
+      <div class="pasos">
+        <div class="paso" id="paso-1">1 · Rutina</div>
+        <div class="paso" id="paso-2">2 · Serie</div>
+        <div class="paso" id="paso-3">3 · Descanso</div>
+      </div>
       <div class="grid">
         <input type="date" id="s-fecha">
         <select id="s-rutina"></select>
       </div>
       <div class="chips" id="s-chips"></div>
+      <div class="objetivo hidden" id="s-objetivo"></div>
       <div class="grid">
         <input type="text" id="s-ej" placeholder="Ejercicio" list="ej-list" style="grid-column: 1 / -1">
         <datalist id="ej-list"></datalist>
@@ -334,8 +389,9 @@
 
     <div class="card">
       <h2>Descanso <small id="rs-info">entre series</small></h2>
-      <div class="kpis">
-        <div class="kpi"><small>Cronómetro</small><b id="rs-cron">0:00</b></div>
+      <div class="cronos">
+        <div class="reloj-box"><small>Cronómetro</small><div class="reloj" id="rs-cron">0:00</div></div>
+        <div class="reloj-box"><small>Temporizador</small><div class="reloj" id="tm-cron">--:--</div></div>
       </div>
       <div class="row">
         <button class="btn cy" id="rs-toggle">Iniciar</button>
@@ -398,7 +454,25 @@
   <!-- PROGRESO -->
   <section id="vista-progreso" class="hidden">
     <div class="card">
+      <h2>Rachas <small>según tus días de entrenamiento</small></h2>
+      <div class="rachas" id="rachas"></div>
+      <h2 style="margin-top:6px">Próximo hito</h2>
+      <div id="hitos"></div>
+    </div>
+
+    <div class="card">
+      <h2>Progresión <small>qué hacer en tu próxima sesión</small></h2>
+      <div id="plan"></div>
+    </div>
+
+    <div class="card">
       <h2>Tu peso <small id="pr-rango"></small></h2>
+      <div class="chips" id="rango-filtro">
+        <button class="chip on" data-r="30">30 días</button>
+        <button class="chip" data-r="90">3 meses</button>
+        <button class="chip" data-r="365">1 año</button>
+        <button class="chip" data-r="0">Todo</button>
+      </div>
       <div class="kpis" id="pr-kpis"></div>
       <div id="pr-meta"></div>
       <div class="chartbox"><canvas id="pr-peso-chart"></canvas></div>
@@ -482,6 +556,23 @@
       <div id="admin-lista"></div>
     </div>
     <div class="card">
+      <h2>Preferencias</h2>
+      <div class="grid">
+        <div>
+          <div class="mut" style="margin-bottom:6px">Días que podés entrenar por semana</div>
+          <select id="pref-dias">
+            <option value="1">1 día</option><option value="2">2 días</option><option value="3">3 días</option>
+            <option value="4">4 días</option><option value="5">5 días</option><option value="6">6 días</option>
+          </select>
+        </div>
+        <div>
+          <div class="mut" style="margin-bottom:6px">Conexión</div>
+          <button class="btn sec" id="pref-offline" style="width:100%">Modo automático</button>
+        </div>
+      </div>
+      <p class="mut">El modo sin conexión guarda todo en el celular y lo sube cuando vuelve la red. Los días por semana definen tu racha semanal.</p>
+    </div>
+    <div class="card">
       <h2>Copia de seguridad</h2>
       <p class="mut">Podés descargar todos tus datos en JSON cuando quieras.</p>
       <button class="btn cy" id="d-exportar">Exportar JSON</button>
@@ -503,6 +594,7 @@
 </nav>
 
 <div id="toast" class="toast"></div>
+<div id="hito" class="hito-pop hidden"></div>
 
 <script>
 // ---------- Configuración ----------
@@ -519,7 +611,8 @@ function DB_VACIA() { return { rutinas: [], sesiones: [], peso: [], ejercicios: 
 let user = null;
 let db = Object.assign(DB_VACIA(), leerJSON(K_CACHE, null));
 let cola = leerJSON(K_COLA, []);      // cambios pendientes de subir, en orden
-let ajustes = leerJSON(K_META, { meta: null });
+let ajustes = Object.assign({ meta: null, dias: 3, offline: false, hitos: [], hitosInit: false }, leerJSON(K_META, {}));
+let rangoPeso = 30;   // días del gráfico de peso (0 = todo)
 let sesionActualId = null;
 let modoRecuperacion = false;
 let cuenta = null;              // fila de la tabla cuentas: aprobado, es_admin, nombre
@@ -588,7 +681,7 @@ function degradado(hex) {
 function pintarEstado() {
   const el = $("estado");
   if (!user) return el.classList.add("hidden");
-  const sinRed = !navigator.onLine;
+  const sinRed = !navigator.onLine || !!ajustes.offline;
   if (!sinRed && !cola.length && !ultimoError) return el.classList.add("hidden");
   el.classList.remove("hidden");
   if (sinRed) el.textContent = `Sin conexión · ${cola.length} cambio(s) guardados en este celular`;
@@ -615,7 +708,7 @@ function encolar(op) {
 
 async function sincronizar() {
   pintarEstado();
-  if (!user || !cuenta?.aprobado || !navigator.onLine || sincronizando) return;
+  if (!user || !cuenta?.aprobado || !navigator.onLine || ajustes.offline || sincronizando) return;
   sincronizando = true;
   try {
     while (cola.length) {
@@ -775,6 +868,7 @@ $("rs-toggle").onclick = () => {
     $("rs-toggle").textContent = "Iniciar";
     $("rs-info").textContent = "último descanso: " + fmtTiempo(descansoPendiente);
     toast("Descanso registrado · " + fmtTiempo(descansoPendiente));
+    renderPasos();
     return;
   }
   rsInicio = Date.now();
@@ -783,6 +877,7 @@ $("rs-toggle").onclick = () => {
 };
 $("rs-reset").onclick = () => {
   clearInterval(rsId); rsId = null; rsInicio = null; descansoPendiente = null;
+  renderPasos();
   $("rs-cron").textContent = "0:00";
   $("rs-toggle").textContent = "Iniciar";
   $("rs-info").textContent = "entre series";
@@ -803,16 +898,20 @@ $("tm-iniciar").onclick = () => {
   // Se crea el audio dentro del toque para que el celular lo permita después.
   try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (e) {}
   clearInterval(tmId);
+  $("tm-cron").classList.remove("fin");
   tmFin = Date.now() + seg * 1000;
   const tick = () => {
     const resta = Math.ceil((tmFin - Date.now()) / 1000);
     if (resta <= 0) {
       clearInterval(tmId); tmId = null;
       $("tm-estado").textContent = "¡Terminó el descanso!";
+      $("tm-cron").textContent = "0:00";
+      $("tm-cron").classList.add("fin");
       avisarFin();
       return;
     }
     $("tm-estado").textContent = "Quedan " + fmtTiempo(resta);
+    $("tm-cron").textContent = fmtTiempo(resta);
   };
   tick();
   tmId = setInterval(tick, 250);
@@ -820,6 +919,8 @@ $("tm-iniciar").onclick = () => {
 $("tm-cancelar").onclick = () => {
   clearInterval(tmId); tmId = null;
   $("tm-estado").textContent = "Temporizador cancelado.";
+  $("tm-cron").textContent = "--:--";
+  $("tm-cron").classList.remove("fin");
 };
 
 // ---------- Sesión ----------
@@ -849,7 +950,7 @@ $("s-rutina").onchange = () => {
 };
 $("s-chips").onclick = e => {
   const b = e.target.closest("button[data-ej]");
-  if (b) $("s-ej").value = b.dataset.ej;
+  if (b) { $("s-ej").value = b.dataset.ej; renderObjetivo(); }
 };
 
 function asegurarSesion() {
@@ -894,6 +995,7 @@ $("s-agregar").onclick = () => {
   $("s-ej").value = "";
   if (kg > 0 && kg > previo) toast(`🔥 Nuevo récord en ${ej}: ${kg} kg`);
   else toast(`+${n} serie${n > 1 ? "s" : ""} · ${ej}`);
+  revisarHitos(calcularProgreso());
 };
 
 function quitarSesion(id) {
@@ -962,6 +1064,8 @@ function estimarSesion(ses) {
 function renderSesion() {
   const ses = sesionActual();
   $("s-info").textContent = ses ? ses.fecha : "sin sesión abierta";
+  renderPasos();
+  renderObjetivo();
   if (ses && ses.series.length) {
     const e = estimarSesion(ses);
     $("s-kcal").textContent = e.conPeso
@@ -1156,7 +1260,8 @@ function volumenSemanas(n) {
 }
 
 function renderProgresoPeso() {
-  const datos = db.peso;
+  const corte = rangoPeso ? Date.now() - rangoPeso * DIA_MS : -Infinity;
+  const datos = db.peso.filter(p => new Date(p.fecha).getTime() >= corte);
   const m = ajustes.meta;
 
   if (!datos.length) {
@@ -1415,7 +1520,14 @@ function recomendaciones() {
       consejo = "Sumá una repetición por serie hasta llegar al rango alto y recién después subí la carga.";
     }
     if (descProm !== null && repsMin < 6 && descProm < 120) consejo += " Para cargas altas conviene descansar 2 a 3 minutos.";
-    out.push({ ej, tipo, consejo });
+    const objetivo = {
+      sube: kgMax > 0 ? `${fmt(kgMax + 2.5)} kg × ${repsMin} reps` : `${repsMin + 1} reps`,
+      reps: `${kgMax} kg · ${repsMin + 1} reps mínimas`,
+      mantener: `${kgMax} kg · mismas reps`,
+      baja: `${fmt(kgMax * 0.95)} kg`,
+      estancado: "cambiá el rango de reps"
+    }[tipo];
+    out.push({ ej, tipo, consejo, objetivo });
   });
   return out;
 }
@@ -1433,12 +1545,203 @@ $("so-analizar").onclick = () => {
       </div>`).join("")}` : '<p class="mut">Necesitás al menos 2 sesiones con el mismo ejercicio para dar recomendaciones.</p>';
 };
 
+// ---------- Semanas, rachas e hitos ----------
+const pad = n => String(n).padStart(2, "0");
+const fechaISO = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const lunesDe = f => { const d = new Date(f + "T00:00"); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return fechaISO(d); };
+const sumarDias = (f, n) => { const d = new Date(f + "T00:00"); d.setDate(d.getDate() + n); return fechaISO(d); };
+const UMBRALES = { ses: [10, 25, 50, 100, 200], rec: [1, 5, 10, 25, 50], racha: [4, 8, 12, 24, 52], meta: [25, 50, 75, 100] };
+
+// Cuenta las semanas seguidas que cumplen. La semana en curso no corta la racha si todavía no terminó.
+function rachaActual(flags) {
+  let arr = flags.slice();
+  if (arr.length && !arr[arr.length - 1]) arr = arr.slice(0, -1);
+  let n = 0;
+  for (let i = arr.length - 1; i >= 0 && arr[i]; i--) n++;
+  return n;
+}
+
+function avanceMeta() {
+  const m = ajustes.meta;
+  if (!m || !db.peso.length) return null;
+  const ini = db.peso[0].kg, ult = db.peso[db.peso.length - 1].kg;
+  if (ini === m) return 100;
+  return Math.max(0, Math.min(100, (ini - ult) / (ini - m) * 100));
+}
+
+function calcularProgreso() {
+  const ses = sesionesConSeries().slice().sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const semanas = {};
+  const sem = k => (semanas[k] = semanas[k] || { ses: 0, vol: 0, kcal: 0, records: 0 });
+  const mejorPrevio = {};
+  const pesoOK = !!pesoRef();
+  let records = 0;
+  ses.forEach(s => {
+    const w = sem(lunesDe(s.fecha));
+    w.ses++;
+    w.vol += s.series.reduce((a, x) => a + x.kg * x.reps, 0);
+    if (pesoOK) w.kcal += estimarSesion(s).kcal;
+    new Set(s.series.map(x => x.ejercicio)).forEach(ej => {
+      const v = e1rmSesion(s, ej);
+      if (mejorPrevio[ej] && v > mejorPrevio[ej]) { w.records++; records++; }
+      mejorPrevio[ej] = Math.max(mejorPrevio[ej] || 0, v);
+    });
+  });
+  const hoyK = lunesDe(hoy());
+  const primera = ses.length ? lunesDe(ses[0].fecha) : hoyK;
+  const lista = [];
+  for (let k = primera; k <= hoyK; k = sumarDias(k, 7)) lista.push(k);
+  const w = lista.map(k => semanas[k] || { ses: 0, vol: 0, kcal: 0, records: 0 });
+  const cumple = {
+    objetivo: w.map(x => x.ses >= ajustes.dias),
+    record: w.map(x => x.records > 0),
+    kcal: w.map((x, i) => i > 0 && x.kcal > 0 && x.kcal > w[i - 1].kcal),
+    volumen: w.map((x, i) => i > 0 && x.vol > w[i - 1].vol)
+  };
+  const rachas = {};
+  Object.keys(cumple).forEach(c => rachas[c] = rachaActual(cumple[c]));
+  return { sesiones: ses.length, records, semanas: w, rachas };
+}
+
+function barraHito(nombre, valor, umbrales, unidad) {
+  const sig = umbrales.find(u => u > valor);
+  if (sig === undefined) return `
+    <div class="plan-item" style="display:block">
+      <div class="row" style="margin:0"><b>${nombre}</b><span class="mut" style="margin-left:auto">¡Conseguidos!</span></div>
+      <div class="barra gruesa"><div style="width:100%"></div></div>
+    </div>`;
+  const ant = [0, ...umbrales].filter(u => u <= valor).pop();
+  const pct = Math.round((valor - ant) / (sig - ant) * 100);
+  return `
+    <div class="plan-item" style="display:block">
+      <div class="row" style="margin:0"><b>${nombre}</b><span class="mut" style="margin-left:auto">${fmt(valor, 0)} / ${sig}${unidad}</span></div>
+      <div class="barra gruesa"><div style="width:${pct}%"></div></div>
+      <div class="mut">Próximo hito: ${sig}${unidad} · faltan ${fmt(sig - valor, 0)}${unidad}</div>
+    </div>`;
+}
+
+function renderRachasHitos(p) {
+  const r = p.rachas;
+  const etiquetas = {
+    objetivo: `Semanas en meta (${ajustes.dias} días)`,
+    record: "Semanas con récord",
+    kcal: "Semanas quemando más",
+    volumen: "Semanas con más carga"
+  };
+  $("rachas").innerHTML = Object.keys(etiquetas).map(k => `
+    <div class="racha"><small>${etiquetas[k]}</small><b><span class="llama">${r[k] ? "🔥" : "💤"}</span> ${r[k]}</b><small>seguidas</small></div>`).join("");
+  const av = avanceMeta();
+  $("hitos").innerHTML =
+    barraHito("Sesiones", p.sesiones, UMBRALES.ses, "") +
+    barraHito("Récords de kilos", p.records, UMBRALES.rec, "") +
+    barraHito("Semanas en meta", r.objetivo, UMBRALES.racha, "") +
+    (av !== null ? barraHito("Meta de peso", av, UMBRALES.meta, "%") : `<p class="mut">Fijá una meta de peso en la pestaña Peso para ver ese hito.</p>`);
+}
+
+function logrosHitos(p) {
+  const out = [];
+  UMBRALES.ses.filter(u => p.sesiones >= u).forEach(u => out.push({ k: `ses-${u}`, t: `${u} sesiones completadas` }));
+  UMBRALES.rec.filter(u => p.records >= u).forEach(u => out.push({ k: `rec-${u}`, t: `${u} récord${u > 1 ? "es" : ""} de kilos` }));
+  UMBRALES.racha.filter(u => p.rachas.objetivo >= u).forEach(u => out.push({ k: `racha-${u}`, t: `${u} semanas seguidas en tu meta` }));
+  const av = avanceMeta();
+  if (av !== null) UMBRALES.meta.filter(u => av >= u).forEach(u => out.push({ k: `meta-${u}`, t: `${u} % hacia tu meta de peso` }));
+  return out;
+}
+
+// La primera vez marca los hitos ya conseguidos sin festejarlos; después avisa solo los nuevos.
+function revisarHitos(p) {
+  const logros = logrosHitos(p);
+  if (!ajustes.hitosInit) {
+    ajustes.hitos = logros.map(x => x.k);
+    ajustes.hitosInit = true;
+    guardarTodo();
+    return;
+  }
+  const nuevos = logros.filter(x => !ajustes.hitos.includes(x.k));
+  if (!nuevos.length) return;
+  ajustes.hitos = [...ajustes.hitos, ...nuevos.map(x => x.k)];
+  guardarTodo();
+  mostrarHito("¡Hito conseguido!", nuevos[nuevos.length - 1].t);
+}
+
+function mostrarHito(titulo, sub) {
+  const h = $("hito");
+  h.innerHTML = `<span class="estrella">🏆</span><b>${esc(titulo)}</b><span>${esc(sub)}</span>`;
+  h.classList.remove("hidden");
+  h.style.animation = "none"; void h.offsetWidth; h.style.animation = "";
+  clearTimeout(mostrarHito.t);
+  mostrarHito.t = setTimeout(() => h.classList.add("hidden"), 3500);
+}
+
+// ---------- Progresión estructurada ----------
+const ORDEN_PLAN = { baja: 0, estancado: 1, mantener: 2, reps: 3, sube: 4 };
+function htmlPlan(lista) {
+  const etq = { baja: "Bajó", estancado: "Estancado", mantener: "Al límite", reps: "Sumá reps", sube: "Subí carga" };
+  const color = { baja: "neg", sube: "pos" };
+  return lista.map(x => `
+    <div class="plan-item" style="display:block">
+      <div><b style="color:var(--sun)">${esc(x.ej)}</b> <span class="${color[x.tipo] || ""}">${etq[x.tipo]}</span></div>
+      <div class="mut">${esc(x.consejo)}</div>
+      <div style="margin-top:6px">Próxima vez: <b>${esc(x.objetivo)}</b></div>
+    </div>`).join("");
+}
+function renderPlan() {
+  const r = recomendaciones().sort((a, b) => ORDEN_PLAN[a.tipo] - ORDEN_PLAN[b.tipo]);
+  $("plan").innerHTML = r.length ? htmlPlan(r)
+    : '<p class="mut">Cuando tengas 2 sesiones con el mismo ejercicio, acá aparece qué hacer la próxima vez.</p>';
+}
+
+// ---------- Pasos y objetivo en la sesión ----------
+function renderPasos() {
+  const ses = sesionActual();
+  $("paso-1").classList.toggle("ok", !!$("s-rutina").value || !!ses);
+  $("paso-2").classList.toggle("ok", !!ses && ses.series.length > 0);
+  $("paso-3").classList.toggle("ok", descansoPendiente !== null);
+  $("s-estado-sesion").textContent = ses ? `${ses.series.length} series · ${ses.fecha}` : "sin sesión";
+}
+function renderObjetivo() {
+  const ej = $("s-ej").value.trim();
+  const r = ej ? recomendaciones().find(x => x.ej === ej) : null;
+  $("s-objetivo").classList.toggle("hidden", !r);
+  if (r) $("s-objetivo").innerHTML = `Próxima vez en <b>${esc(ej)}</b>: ${esc(r.objetivo)}<div class="mut" style="margin-top:4px">${esc(r.consejo)}</div>`;
+}
+$("s-ej").addEventListener("input", renderObjetivo);
+
+// ---------- Preferencias ----------
+function pintarOffline() {
+  $("pref-offline").textContent = ajustes.offline ? "Sin conexión forzado · tocá para volver" : "Automático · tocá para forzar";
+  $("pref-offline").classList.toggle("modo-off", !!ajustes.offline);
+}
+$("pref-offline").onclick = () => {
+  ajustes.offline = !ajustes.offline;
+  guardarTodo();
+  pintarOffline();
+  pintarEstado();
+  if (!ajustes.offline) sincronizar();
+};
+$("pref-dias").onchange = () => {
+  ajustes.dias = parseInt($("pref-dias").value) || 3;
+  guardarTodo();
+  renderTodo();
+};
+$("rango-filtro").onclick = e => {
+  const b = e.target.closest("button[data-r]");
+  if (!b) return;
+  rangoPeso = parseInt(b.dataset.r);
+  document.querySelectorAll("#rango-filtro .chip").forEach(c => c.classList.toggle("on", c === b));
+  renderProgresoPeso();
+};
+
 function renderProgreso() {
   renderProgresoPeso();
   renderEntrenamiento();
   renderProgresoEjercicio();
   renderEstadisticas();
   renderRanking();
+  const p = calcularProgreso();
+  renderRachasHitos(p);
+  renderPlan();
+  revisarHitos(p);
 }
 $("p-ej").onchange = renderProgreso;
 $("p-metrica").onchange = renderProgreso;
@@ -1512,6 +1815,8 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 $("s-fecha").value = hoy();
 $("pc-fecha").value = hoy();
 $("ej-nuevo-grupo").innerHTML = GRUPOS.map(g => `<option>${g}</option>`).join("");
+$("pref-dias").value = String(ajustes.dias);
+pintarOffline();
 refrescarSelects();
 renderTodo();
 </script>

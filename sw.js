@@ -1,8 +1,8 @@
 // Service worker: permite abrir la app sin conexión.
 // Subí el número de versión cada vez que cambies index.html, así los celulares descargan la nueva copia.
-const CACHE = "gymapp-v5";
+const CACHE = "gymapp-v6";
 
-const ESTATICOS = ["./", "./index.html", "./manifest.json", "./icon.svg"];
+const ESTATICOS = ["./", "./index.html", "./manifest.json", "./icon.svg", "./icon-192.png", "./icon-512.png"];
 const CDN = [
   "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
