@@ -1397,8 +1397,53 @@ function renderObjetivo() {
   if (r) $("s-objetivo").innerHTML = `Próxima vez en <b>${esc(ej)}</b>: ${esc(r.objetivo)}<div class="mut" style="margin-top:4px">${esc(r.consejo)}</div>`;
   const u = ej ? ultimaSesionDe(ej) : null;
   $("s-ultima").classList.toggle("hidden", !u);
-  if (u) $("s-ultima").innerHTML = `Última vez (${u.fecha}):<br>${resumenUltima(u)}`;
+  if (u) {
+    const top = Math.max(...u.xs.map(x => x.kg));
+    const r25 = k => Math.round(k / 2.5) * 2.5;
+    const cal = top > 0
+      ? `<div class="mut" style="margin-top:6px">Calentamiento sugerido: ${r25(top * 0.5)} kg × 8 · ${r25(top * 0.7)} kg × 5 · ${r25(top * 0.85)} kg × 3</div>`
+      : "";
+    $("s-ultima").innerHTML = `Última vez (${u.fecha}):<br>${resumenUltima(u)}${cal}`;
+    // Al elegir un ejercicio nuevo, carga kilos y reps de la última vez (se puede cambiar).
+    if (prefillEj !== ej) {
+      prefillEj = ej;
+      $("s-peso").value = u.xs[0].kg;
+      $("s-reps").value = u.xs[0].reps;
+    }
+  } else {
+    prefillEj = null;
+  }
 }
+let prefillEj = null;
+
+// Completar serie con un toque: corta el descanso, guarda la serie y arranca el descanso nuevo.
+$("s-hecho").onclick = () => {
+  if (!$("s-ej").value.trim()) return alert("Elegí el ejercicio primero.");
+  $("s-series").value = 1;
+  if (rsId) $("rs-toggle").click();
+  $("s-agregar").click();
+  if ($("s-ej").value === "") $("rs-toggle").click();
+};
+
+// Repetir la última sesión cerrada, con sus ejercicios, kilos y repeticiones.
+$("s-repetir").onclick = () => {
+  const previas = sesionesConSeries()
+    .filter(s => s.id !== sesionActualId)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  if (!previas.length) return alert("No hay una sesión anterior para repetir.");
+  const actual = sesionActual();
+  if (actual && actual.series.length && !confirm("Ya tenés series en esta sesión. ¿Agregar también las de la última?")) return;
+  const origen = previas[0];
+  const ses = asegurarSesion();
+  const filas = origen.series.map(x => ({
+    id: uid(), user_id: user.id, sesion_id: ses.id, ejercicio: x.ejercicio,
+    reps: x.reps, kg: x.kg, rpe: null, descanso_seg: null, tipo_serie: tipoDe(x),
+    created_at: new Date().toISOString()
+  }));
+  ses.series.push(...filas);
+  encolar({ t: "ins", tabla: "series", fila: filas.map(({ created_at, ...f }) => f) });
+  toast(`Repetidas ${filas.length} series de ${origen.fecha}`);
+};
 $("s-ej").addEventListener("input", renderObjetivo);
 
 // ---------- Preferencias ----------
