@@ -711,21 +711,21 @@ const SLOTS = {
 const POOLS = {
   fuerza: {
     fb: ["Sentadilla", "Press banca", "Remo con barra", "Press militar", "Peso muerto"],
-    sup: ["Press banca", "Remo con barra", "Press militar", "Dominadas", "Press inclinado con mancuernas"],
-    inf: ["Sentadilla", "Peso muerto rumano", "Prensa 45°", "Estocadas", "Hip thrust"],
-    push: ["Press banca", "Press militar", "Press inclinado con mancuernas", "Fondos en paralelas", "Press francés"],
-    pull: ["Dominadas", "Remo con barra", "Peso muerto", "Remo con mancuerna", "Jalón al pecho"],
-    legs: ["Sentadilla", "Peso muerto rumano", "Prensa 45°", "Estocadas", "Hip thrust"],
-    arms: ["Press francés", "Curl de bíceps con barra", "Fondos en paralelas", "Curl martillo", "Extensión de tríceps en polea"]
+    sup: ["Press banca", "Press inclinado con barra", "Remo con barra", "Press militar", "Dominadas"],
+    inf: ["Sentadilla", "Peso muerto rumano", "Sentadilla búlgara", "Prensa 45°", "Hip thrust"],
+    push: ["Press banca", "Press inclinado con barra", "Press militar", "Fondos en paralelas", "Press francés"],
+    pull: ["Dominadas", "Remo con barra", "Remo en T", "Peso muerto", "Remo con mancuerna"],
+    legs: ["Sentadilla", "Peso muerto rumano", "Sentadilla búlgara", "Prensa 45°", "Hip thrust"],
+    arms: ["Press francés", "Curl de bíceps con barra", "Fondos en paralelas", "Curl martillo", "Extensión de tríceps sobre la cabeza"]
   },
   hipertrofia: {
     fb: ["Aperturas con mancuernas", "Jalón al pecho", "Elevaciones laterales", "Curl de piernas", "Extensión de piernas", "Plancha"],
-    sup: ["Aperturas con mancuernas", "Jalón al pecho", "Elevaciones laterales", "Curl martillo", "Extensión de tríceps en polea"],
-    inf: ["Hip thrust", "Curl de piernas", "Extensión de piernas", "Elevación de talones", "Estocadas"],
-    push: ["Aperturas con mancuernas", "Elevaciones laterales", "Extensión de tríceps en polea", "Press inclinado con mancuernas", "Press militar"],
-    pull: ["Jalón al pecho", "Remo con mancuerna", "Pájaros (elevación posterior)", "Curl de bíceps con barra", "Curl martillo"],
-    legs: ["Hip thrust", "Curl de piernas", "Extensión de piernas", "Elevación de talones", "Prensa 45°"],
-    arms: ["Curl martillo", "Curl de bíceps con barra", "Extensión de tríceps en polea", "Press francés", "Elevaciones laterales"]
+    sup: ["Aperturas con mancuernas", "Jalón agarre cerrado", "Elevaciones laterales", "Curl martillo", "Extensión de tríceps en polea"],
+    inf: ["Hip thrust", "Curl de piernas", "Extensión de piernas", "Sentadilla hack", "Gemelo sentado"],
+    push: ["Cruces en polea", "Press en máquina de pecho", "Elevaciones laterales", "Extensión de tríceps en polea", "Press Arnold"],
+    pull: ["Jalón al pecho", "Remo en polea baja", "Pájaros (elevación posterior)", "Face pull", "Curl predicador"],
+    legs: ["Sentadilla goblet", "Hip thrust", "Curl de piernas", "Extensión de piernas", "Patada de glúteo en polea"],
+    arms: ["Curl predicador", "Curl martillo", "Extensión de tríceps sobre la cabeza", "Fondos en banco", "Curl en polea"]
   }
 };
 // Elige hasta 5 ejercicios para el día. Evita los ya usados en el plan mientras el catálogo alcance.
