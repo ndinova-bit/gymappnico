@@ -367,6 +367,16 @@ body.calmo .kpi::after,
 body.calmo .barra > div,
 body.calmo .racha .llama { animation: none !important; }
 
+/* ---- v20: descanso como panel sobre la app oscurecida (sin pantalla completa) ---- */
+.modo-fondo { background: rgba(5,6,13,.78); backdrop-filter: blur(4px); }
+.modo-fondo::after { display: none; }
+.modo-cont { width: min(92vw, 460px); }
+.modo-anillo { width: min(82vw, 52vh, 380px); }
+.modo-tiempo { font-size: clamp(46px, min(17vw, 11vh), 96px); }
+.modo-ajuste { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+.modo-ajuste .chip { font-size: 16px; padding: 12px 20px; }
+.modo-botones .btn { min-width: 170px; }
+
 /* ---- v11: accesibilidad ---- */
 :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; box-shadow: 0 0 0 6px rgba(0,240,255,.15); }
 button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: none; }

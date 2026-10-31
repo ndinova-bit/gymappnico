@@ -12,7 +12,7 @@ function DB_VACIA() { return { rutinas: [], sesiones: [], peso: [], ejercicios: 
 let user = null;
 let db = Object.assign(DB_VACIA(), leerJSON(K_CACHE, null));
 let cola = leerJSON(K_COLA, []);      // cambios pendientes de subir, en orden
-let ajustes = Object.assign({ meta: null, dias: 3, offline: false, hitos: [], hitosInit: false }, leerJSON(K_META, {}));
+let ajustes = Object.assign({ meta: null, dias: 3, offline: false, hitos: [], hitosInit: false, calmo: true }, leerJSON(K_META, {}));
 let rangoPeso = 30;   // días del gráfico de peso (0 = todo)
 let sesionActualId = null;
 let modoRecuperacion = false;
@@ -144,7 +144,7 @@ async function sincronizar() {
 async function descargar() {
   const [r, s, p, e] = await Promise.all([
     sb.from("rutinas").select("id,nombre,ejercicios,created_at").order("created_at"),
-    sb.from("sesiones").select("id,fecha,series(id,ejercicio,reps,kg,rpe,descanso_seg,tipo_serie,created_at)").order("fecha"),
+    sb.from("sesiones").select("id,fecha,notas,series(id,ejercicio,reps,kg,rpe,descanso_seg,tipo_serie,created_at)").order("fecha"),
     sb.from("peso").select("fecha,kg").order("fecha"),
     sb.from("ejercicios").select("id,user_id,nombre,grupo,tipo,met").order("nombre")
   ]);
@@ -357,7 +357,6 @@ function abrirModo(tipo) {
   clearInterval(abrirModo.t);
   abrirModo.t = setInterval(pintarModo, 200);
   pantallaActiva(true);
-  try { document.documentElement.requestFullscreen?.(); } catch (e) {}
 }
 function cerrarModo() {
   clearInterval(abrirModo.t);
@@ -365,10 +364,10 @@ function cerrarModo() {
   modoEl.classList.remove("fin");
   modoTipo = null;
   pantallaActiva(false);
-  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
 }
 function pintarModo() {
   if (!modoTipo) return;
+  $("modo-ajuste").classList.toggle("hidden", !(modoTipo === "tm" && tmId));
   const arco = $("modo-arco");
   if (modoTipo === "cron") {
     const corriendo = !!rsId;
@@ -399,16 +398,28 @@ function pintarModo() {
   const total = tmId ? (tmTotal || 1) : Math.max(1, parseInt($("tm-seg").value) || 1);
   $("modo-tiempo").textContent = fmtTiempo(resta);
   arco.style.strokeDashoffset = CIRC * (1 - Math.min(1, resta / total));
-  $("modo-accion").textContent = tmId ? "Cancelar" : "Iniciar";
-  $("modo-sub").textContent = tmId ? "Quedan " + fmtTiempo(resta) : "Elegí los segundos en la pantalla principal";
+  $("modo-accion").textContent = tmId ? "Saltar descanso" : "Iniciar";
+  $("modo-sub").textContent = tmId ? "de " + fmtTiempo(tmTotal) : "Elegí los segundos en la pantalla principal";
 }
 $("modo-accion").onclick = () => {
   if (modoTipo === "cron") return $("rs-toggle").click();
   if (modoEl.classList.contains("fin")) return cerrarModo();
-  if (tmId) return $("tm-cancelar").click();
+  if (tmId) { $("tm-cancelar").click(); return cerrarModo(); }
   $("tm-iniciar").click();
 };
 $("modo-cerrar").onclick = cerrarModo;
+document.querySelector(".modo-fondo").onclick = cerrarModo;
+// Ajuste del temporizador en marcha: -15 s, +15 s, +30 s.
+document.querySelectorAll("#modo-ajuste button").forEach(b => b.onclick = () => {
+  if (!tmId || !tmFin) return;
+  const d = parseInt(b.dataset.s);
+  tmFin += d * 1000;
+  tmTotal = Math.max(1, tmTotal + d);
+  pintarModo();
+});
+// Tocar cualquiera de los relojes de la tarjeta vuelve a abrir el panel.
+$("rs-cron").parentElement.onclick = () => abrirModo("cron");
+$("tm-cron").parentElement.onclick = () => abrirModo("tm");
 
 // ---------- Sesión ----------
 function ejerciciosConocidos() {
@@ -486,7 +497,10 @@ $("s-agregar").onclick = () => {
     $("rs-info").textContent = "entre series";
   }
   $("s-ej").value = "";
-  if (kg > 0 && kg > previo) toast(`🔥 Nuevo récord en ${ej}: ${kg} kg`);
+  if (kg > 0 && kg > previo) {
+    toast(`🔥 Nuevo récord en ${ej}: ${kg} kg`);
+    if (previo > 0) mostrarHito("¡Nuevo récord!", `${ej}: ${kg} kg`);
+  }
   else toast(`+${n} serie${n > 1 ? "s" : ""} · ${ej}`);
   revisarHitos(calcularProgreso());
 };
@@ -539,6 +553,21 @@ function cambiarFecha(sesId, fecha) {
   encolar({ t: "upd", tabla: "sesiones", id: sesId, cambios: { fecha } });
 }
 
+$("s-nota").onchange = () => {
+  const ses = sesionActual();
+  if (!ses) return toast("Agregá una serie primero para guardar la nota");
+  ses.notas = $("s-nota").value.trim();
+  encolar({ t: "upd", tabla: "sesiones", id: ses.id, cambios: { notas: ses.notas || null } });
+};
+function editarNota(sesId) {
+  const ses = db.sesiones.find(s => s.id === sesId);
+  if (!ses) return;
+  const n = prompt("Nota de la sesión (cómo te sentiste, sueño, molestias)", ses.notas || "");
+  if (n === null) return;
+  ses.notas = n.trim();
+  encolar({ t: "upd", tabla: "sesiones", id: sesId, cambios: { notas: ses.notas || null } });
+}
+
 function borrarSesionConfirm(id) {
   if (confirm("¿Borrar esta sesión y todas sus series?")) quitarSesion(id);
 }
@@ -563,6 +592,7 @@ function renderSesion() {
   $("s-info").textContent = ses ? ses.fecha : "sin sesión abierta";
   renderPasos();
   renderObjetivo();
+  if (document.activeElement !== $("s-nota")) $("s-nota").value = ses?.notas || "";
   if (ses && ses.series.length) {
     const e = estimarSesion(ses);
     $("s-kcal").textContent = e.conPeso
@@ -592,10 +622,11 @@ function renderSesion() {
     const vol = s.series.reduce((a, x) => a + x.reps * x.kg, 0);
     return `
       <details class="hist">
-        <summary><b>${s.fecha}</b><span class="mut">${esc(ejs)} · ${s.series.length} series · ${Math.round(vol)} kg</span></summary>
+        <summary><b>${s.fecha}</b><span class="mut">${esc(ejs)} · ${s.series.length} series · ${Math.round(vol)} kg${s.notas ? " · 📝 " + esc(s.notas.slice(0, 60)) : ""}</span></summary>
         <div class="cuerpo">
           <div class="row">
             <input type="date" value="${s.fecha}" style="max-width:190px" onchange="cambiarFecha('${s.id}', this.value)">
+            <button class="btn sec mini fijo" onclick="editarNota('${s.id}')">Nota</button>
             <button class="btn peligro mini fijo" onclick="borrarSesionConfirm('${s.id}')">Borrar sesión</button>
           </div>
           <table>
@@ -1417,12 +1448,27 @@ function renderObjetivo() {
 let prefillEj = null;
 
 // Completar serie con un toque: corta el descanso, guarda la serie y arranca el descanso nuevo.
+// El descanso arranca como cuenta regresiva con lo que descansaste la serie anterior;
+// el tiempo real (incluido lo que te pasaste) se guarda en la serie siguiente.
+let restInicio = null;
 $("s-hecho").onclick = () => {
   if (!$("s-ej").value.trim()) return alert("Elegí el ejercicio primero.");
   $("s-series").value = 1;
+  cerrarModo();
   if (rsId) $("rs-toggle").click();
+  else if (restInicio) descansoPendiente = Math.round((Date.now() - restInicio) / 1000);
+  const previo = descansoPendiente;
   $("s-agregar").click();
-  if ($("s-ej").value === "") $("rs-toggle").click();
+  if ($("s-ej").value !== "") return;   // la serie no se guardó (datos inválidos)
+  clearInterval(tmId); tmId = null; tmFin = null;
+  if (previo && previo >= 5) {
+    $("tm-seg").value = previo;
+    restInicio = Date.now();
+    $("tm-iniciar").click();
+  } else {
+    restInicio = Date.now();
+    $("rs-toggle").click();
+  }
 };
 
 // Repetir la última sesión cerrada, con sus ejercicios, kilos y repeticiones.
@@ -1471,6 +1517,28 @@ $("rango-filtro").onclick = e => {
   renderProgresoPeso();
 };
 
+// ---------- Mapa corporal ----------
+function renderMapa() {
+  const corte = new Date(hoy()).getTime() - 7 * DIA_MS;
+  const vol = {};
+  sesionesConSeries().forEach(s => {
+    if (new Date(s.fecha).getTime() <= corte) return;
+    s.series.forEach(x => { const g = grupoDe(x.ejercicio); vol[g] = (vol[g] || 0) + x.kg * x.reps; });
+  });
+  const max = Math.max(0, ...Object.values(vol));
+  document.querySelectorAll("#mapa-svg [data-g]").forEach(el => {
+    const r = max ? (vol[el.dataset.g] || 0) / max : 0;
+    el.style.fill = r ? "var(--cyan)" : "#ffffff";
+    el.style.fillOpacity = r ? (0.2 + 0.8 * r).toFixed(2) : "0.06";
+  });
+  const filas = Object.entries(vol).sort((a, b) => b[1] - a[1]);
+  $("mapa-lista").innerHTML = filas.length ? filas.map(([g, v]) => `
+    <div style="margin-top:8px">
+      <div class="row" style="margin:0"><b>${esc(g)}</b><span class="mut" style="margin-left:auto">${Math.round(v).toLocaleString("es-AR")} kg</span></div>
+      <div class="barra"><div style="width:${Math.round(v / max * 100)}%"></div></div>
+    </div>`).join("") : '<p class="mut">Sin entrenamientos en los últimos 7 días.</p>';
+}
+
 function renderProgreso() {
   renderProgresoPeso();
   renderEntrenamiento();
@@ -1480,6 +1548,7 @@ function renderProgreso() {
   const p = calcularProgreso();
   renderRachasHitos(p);
   renderPlan();
+  renderMapa();
   revisarHitos(p);
 }
 $("p-ej").onchange = renderProgreso;
@@ -1555,6 +1624,41 @@ $("s-fecha").value = hoy();
 $("pc-fecha").value = hoy();
 $("ej-nuevo-grupo").innerHTML = GRUPOS.map(g => `<option>${g}</option>`).join("");
 $("pref-dias").value = String(ajustes.dias);
+
+// Tema visual y modo gimnasio: se guardan en el celular y se aplican al abrir la app.
+function aplicarTema() {
+  const tema = ajustes.tema || "neon";
+  document.documentElement.dataset.tema = tema;
+  // Los gráficos toman los colores del tema elegido.
+  const cs = getComputedStyle(document.documentElement);
+  ["cyan", "mag", "lime", "sun", "vio", "red"].forEach(k => { const v = cs.getPropertyValue("--" + k).trim(); if (v) NEON[k] = v; });
+  Chart.defaults.plugins.tooltip.borderColor = NEON.cyan;
+  Chart.defaults.plugins.tooltip.titleColor = NEON.cyan;
+  document.body.classList.toggle("gym", !!ajustes.gym);
+  $("pref-tema").value = tema;
+  $("pref-gym").textContent = ajustes.gym ? "Activada · tocá para quitar" : "Desactivada";
+  document.body.classList.toggle("calmo", ajustes.calmo !== false);
+  $("pref-calmo").textContent = ajustes.calmo !== false ? "Solo momentos clave" : "Siempre animada";
+  const color = { neon: "#05060d", acero: "#0c0d10", retro: "#0d0802" }[tema];
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color);
+}
+$("pref-tema").onchange = () => {
+  ajustes.tema = $("pref-tema").value;
+  guardarTodo();
+  aplicarTema();
+  if (!$("vista-progreso").classList.contains("hidden")) renderProgreso();
+};
+$("pref-gym").onclick = () => {
+  ajustes.gym = !ajustes.gym;
+  guardarTodo();
+  aplicarTema();
+};
+$("pref-calmo").onclick = () => {
+  ajustes.calmo = ajustes.calmo === false;
+  guardarTodo();
+  aplicarTema();
+};
+aplicarTema();
 pintarOffline();
 refrescarSelects();
 renderTodo();
