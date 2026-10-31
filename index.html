@@ -236,6 +236,39 @@
   }
   .toast.ver { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  /* ---- v7: modo descanso a pantalla completa ---- */
+  .modo { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .modo-fondo {
+    position: absolute; inset: 0; animation: entra .4s ease both;
+    background: radial-gradient(circle at 50% 35%, rgba(255,43,214,.28), rgba(5,6,13,.97) 62%);
+    backdrop-filter: blur(8px);
+  }
+  .modo-fondo::after {
+    content: ""; position: absolute; left: 50%; top: 42%; width: 620px; height: 620px;
+    margin: -310px 0 0 -310px; border-radius: 50%; opacity: .55;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(0,240,255,.22) 60deg, transparent 120deg);
+    animation: gira 7s linear infinite;
+  }
+  @keyframes gira { to { transform: rotate(360deg); } }
+  @keyframes entra { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sube { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: none; } }
+  .modo-cont { position: relative; text-align: center; width: min(92vw, 420px); animation: sube .5s cubic-bezier(.2,.8,.2,1) both; }
+  .modo-tipo { font-size: 13px; letter-spacing: 4px; font-weight: 800; text-transform: uppercase; color: var(--mut); }
+  .modo-anillo { position: relative; width: min(72vw, 300px); aspect-ratio: 1; margin: 18px auto; }
+  .modo-anillo svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+  .modo-anillo .pista { fill: none; stroke: rgba(0,240,255,.12); stroke-width: 12; }
+  .modo-anillo .arco { fill: none; stroke: url(#modo-grad); stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset .25s linear; filter: drop-shadow(0 0 8px rgba(0,240,255,.8)); }
+  .modo-tiempo {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: "Arial Black", Impact, sans-serif; font-size: clamp(54px, 17vw, 84px); color: var(--cyan);
+    text-shadow: 0 0 24px currentColor; font-variant-numeric: tabular-nums;
+  }
+  .modo.fin .modo-tiempo { color: var(--lime); text-shadow: 0 0 28px var(--lime); animation: latido .9s ease-in-out infinite; }
+  .modo.fin .arco { stroke: var(--lime); }
+  .modo-sub { color: var(--txt); font-size: 15px; min-height: 22px; }
+  .modo-botones { margin-top: 22px; justify-content: center; }
+  .modo-botones .btn { min-width: 130px; }
+
   /* ---- v6: sesión, hitos, rachas y animaciones ---- */
   .chartbox { height: clamp(200px, 38vh, 340px); }
   .pasos { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -594,6 +627,30 @@
 </nav>
 
 <div id="toast" class="toast"></div>
+<div id="modo" class="modo hidden">
+  <div class="modo-fondo"></div>
+  <div class="modo-cont">
+    <div class="modo-tipo" id="modo-tipo">Descanso</div>
+    <div class="modo-anillo">
+      <svg viewBox="0 0 220 220">
+        <defs>
+          <linearGradient id="modo-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#00f0ff"/>
+            <stop offset="1" stop-color="#ff2bd6"/>
+          </linearGradient>
+        </defs>
+        <circle class="pista" cx="110" cy="110" r="98"/>
+        <circle id="modo-arco" class="arco" cx="110" cy="110" r="98"/>
+      </svg>
+      <div class="modo-tiempo" id="modo-tiempo">0:00</div>
+    </div>
+    <div class="modo-sub" id="modo-sub"></div>
+    <div class="row modo-botones">
+      <button class="btn cy" id="modo-accion">Iniciar</button>
+      <button class="btn sec fijo" id="modo-cerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
 <div id="hito" class="hito-pop hidden"></div>
 
 <script>
@@ -873,6 +930,7 @@ $("rs-toggle").onclick = () => {
   }
   rsInicio = Date.now();
   $("rs-toggle").textContent = "Detener";
+  abrirModo("cron");
   rsId = setInterval(() => $("rs-cron").textContent = fmtTiempo(Math.floor((Date.now() - rsInicio) / 1000)), 250);
 };
 $("rs-reset").onclick = () => {
@@ -900,6 +958,8 @@ $("tm-iniciar").onclick = () => {
   clearInterval(tmId);
   $("tm-cron").classList.remove("fin");
   tmFin = Date.now() + seg * 1000;
+  tmTotal = seg;
+  abrirModo("tm");
   const tick = () => {
     const resta = Math.ceil((tmFin - Date.now()) / 1000);
     if (resta <= 0) {
@@ -920,8 +980,84 @@ $("tm-cancelar").onclick = () => {
   clearInterval(tmId); tmId = null;
   $("tm-estado").textContent = "Temporizador cancelado.";
   $("tm-cron").textContent = "--:--";
+  tmFin = null;
   $("tm-cron").classList.remove("fin");
 };
+
+// ---------- Modo descanso a pantalla completa ----------
+const CIRC = 2 * Math.PI * 98;
+const modoEl = $("modo");
+let modoTipo = null;       // "cron" | "tm" | null
+let tmTotal = 0;           // segundos del último temporizador iniciado
+let wakeLock = null;
+
+async function pantallaActiva(on) {
+  try {
+    if (on && navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen");
+    if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch (e) {}
+}
+function abrirModo(tipo) {
+  modoTipo = tipo;
+  modoEl.classList.remove("fin");
+  $("modo-arco").style.strokeDasharray = CIRC;
+  modoEl.classList.remove("hidden");
+  pintarModo();
+  clearInterval(abrirModo.t);
+  abrirModo.t = setInterval(pintarModo, 200);
+  pantallaActiva(true);
+  try { document.documentElement.requestFullscreen?.(); } catch (e) {}
+}
+function cerrarModo() {
+  clearInterval(abrirModo.t);
+  modoEl.classList.add("hidden");
+  modoEl.classList.remove("fin");
+  modoTipo = null;
+  pantallaActiva(false);
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+}
+function pintarModo() {
+  if (!modoTipo) return;
+  const arco = $("modo-arco");
+  if (modoTipo === "cron") {
+    const corriendo = !!rsId;
+    const seg = rsInicio && corriendo ? Math.floor((Date.now() - rsInicio) / 1000) : (descansoPendiente ?? 0);
+    $("modo-tipo").textContent = "Cronómetro de descanso";
+    $("modo-tiempo").textContent = fmtTiempo(seg);
+    // En el cronómetro, el anillo da una vuelta por minuto.
+    arco.style.strokeDashoffset = CIRC * (1 - (seg % 60) / 60);
+    $("modo-accion").textContent = corriendo ? "Detener" : "Iniciar";
+    $("modo-sub").textContent = corriendo
+      ? "Tocá Detener cuando quieras arrancar la serie"
+      : (descansoPendiente !== null ? "Último descanso: " + fmtTiempo(descansoPendiente) : "Tocá Iniciar para empezar a descansar");
+    return;
+  }
+  // Temporizador
+  $("modo-tipo").textContent = "Temporizador";
+  const terminado = !tmId && tmFin && Date.now() >= tmFin;
+  if (terminado) {
+    modoEl.classList.add("fin");
+    $("modo-tiempo").textContent = "0:00";
+    arco.style.strokeDashoffset = CIRC;
+    $("modo-sub").textContent = "¡Listo! Volvé a la serie";
+    $("modo-accion").textContent = "Cerrar";
+    return;
+  }
+  modoEl.classList.remove("fin");
+  const resta = tmId && tmFin ? Math.max(0, Math.ceil((tmFin - Date.now()) / 1000)) : (parseInt($("tm-seg").value) || 0);
+  const total = tmId ? (tmTotal || 1) : Math.max(1, parseInt($("tm-seg").value) || 1);
+  $("modo-tiempo").textContent = fmtTiempo(resta);
+  arco.style.strokeDashoffset = CIRC * (1 - Math.min(1, resta / total));
+  $("modo-accion").textContent = tmId ? "Cancelar" : "Iniciar";
+  $("modo-sub").textContent = tmId ? "Quedan " + fmtTiempo(resta) : "Elegí los segundos en la pantalla principal";
+}
+$("modo-accion").onclick = () => {
+  if (modoTipo === "cron") return $("rs-toggle").click();
+  if (modoEl.classList.contains("fin")) return cerrarModo();
+  if (tmId) return $("tm-cancelar").click();
+  $("tm-iniciar").click();
+};
+$("modo-cerrar").onclick = cerrarModo;
 
 // ---------- Sesión ----------
 function ejerciciosConocidos() {
