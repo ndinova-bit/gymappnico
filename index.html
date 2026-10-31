@@ -252,20 +252,20 @@
   @keyframes gira { to { transform: rotate(360deg); } }
   @keyframes entra { from { opacity: 0; } to { opacity: 1; } }
   @keyframes sube { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: none; } }
-  .modo-cont { position: relative; text-align: center; width: min(92vw, 420px); animation: sube .5s cubic-bezier(.2,.8,.2,1) both; }
-  .modo-tipo { font-size: 13px; letter-spacing: 4px; font-weight: 800; text-transform: uppercase; color: var(--mut); }
-  .modo-anillo { position: relative; width: min(72vw, 300px); aspect-ratio: 1; margin: 18px auto; }
+  .modo-cont { position: relative; text-align: center; width: min(94vw, 760px); animation: sube .5s cubic-bezier(.2,.8,.2,1) both; }
+  .modo-tipo { font-size: clamp(13px, 2.2vh, 22px); letter-spacing: 4px; font-weight: 800; text-transform: uppercase; color: var(--mut); }
+  .modo-anillo { position: relative; width: min(86vw, 70vh); aspect-ratio: 1; margin: clamp(10px, 3vh, 36px) auto; }
   .modo-anillo svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
   .modo-anillo .pista { fill: none; stroke: rgba(0,240,255,.12); stroke-width: 12; }
   .modo-anillo .arco { fill: none; stroke: url(#modo-grad); stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset .25s linear; filter: drop-shadow(0 0 8px rgba(0,240,255,.8)); }
   .modo-tiempo {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    font-family: "Arial Black", Impact, sans-serif; font-size: clamp(54px, 17vw, 84px); color: var(--cyan);
+    font-family: "Arial Black", Impact, sans-serif; font-size: clamp(60px, min(24vw, 26vh), 220px); color: var(--cyan);
     text-shadow: 0 0 24px currentColor; font-variant-numeric: tabular-nums;
   }
   .modo.fin .modo-tiempo { color: var(--lime); text-shadow: 0 0 28px var(--lime); animation: latido .9s ease-in-out infinite; }
   .modo.fin .arco { stroke: var(--lime); }
-  .modo-sub { color: var(--txt); font-size: 15px; min-height: 22px; }
+  .modo-sub { color: var(--txt); font-size: clamp(15px, 2.4vh, 24px); min-height: 28px; }
   .modo-botones { margin-top: 22px; justify-content: center; }
   .modo-botones .btn { min-width: 130px; }
 
