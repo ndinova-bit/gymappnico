@@ -658,14 +658,96 @@ $("ej-nuevo-guardar").onclick = () => {
 };
 
 // ---------- Rutinas ----------
+// Editar una rutina: carga su nombre y ejercicios; al guardar reemplaza la misma fila.
+let rutinaEditandoId = null;
+function editarRutina(id) {
+  const r = db.rutinas.find(x => x.id === id);
+  if (!r) return;
+  rutinaEditandoId = id;
+  $("r-nombre").value = r.nombre;
+  rutinaBorrador = [...r.ejercicios];
+  $("r-guardar").textContent = "Guardar cambios";
+  renderPicker();
+  $("r-nombre").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 $("r-guardar").onclick = () => {
   const nombre = $("r-nombre").value.trim();
   if (!nombre || !rutinaBorrador.length) return alert("Poné nombre y elegí al menos un ejercicio.");
-  const r = { id: uid(), nombre, ejercicios: [...rutinaBorrador] };
-  db.rutinas.push(r);
-  encolar({ t: "ins", tabla: "rutinas", fila: { id: r.id, user_id: user.id, nombre, ejercicios: r.ejercicios } });
+  const id = rutinaEditandoId || uid();
+  const r = { id, nombre, ejercicios: [...rutinaBorrador] };
+  const i = db.rutinas.findIndex(x => x.id === id);
+  if (i >= 0) db.rutinas[i] = r; else db.rutinas.push(r);
+  encolar({ t: "ins", tabla: "rutinas", fila: { id, user_id: user.id, nombre, ejercicios: r.ejercicios } });
+  rutinaEditandoId = null;
+  $("r-guardar").textContent = "Guardar rutina";
   $("r-nombre").value = ""; rutinaBorrador = []; renderPicker();
-  toast("Rutina guardada");
+  toast(i >= 0 ? "Rutina actualizada" : "Rutina guardada");
+};
+
+// ---------- Plan semanal ----------
+const DIAS_NOMBRE = { 1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado" };
+let plDias = [1, 3, 5];
+let plObjetivo = "ambos";
+const PLANTILLAS = {
+  1: [["Full body", "fb"]],
+  2: [["Full body A", "fb"], ["Full body B", "fb"]],
+  3: [["Full body A", "fb"], ["Full body B", "fb"], ["Full body C", "fb"]],
+  4: [["Tren superior A", "sup"], ["Tren inferior A", "inf"], ["Tren superior B", "sup"], ["Tren inferior B", "inf"]],
+  5: [["Empuje", "push"], ["Tirón", "pull"], ["Piernas", "legs"], ["Hombros y brazos", "arms"], ["Full body", "fb"]],
+  6: [["Empuje A", "push"], ["Tirón A", "pull"], ["Piernas A", "legs"], ["Empuje B", "push"], ["Tirón B", "pull"], ["Piernas B", "legs"]]
+};
+// Ejercicios sugeridos por tipo de día. Solo se usan los que existan en tu catálogo.
+const SLOTS = {
+  fb: ["Sentadilla", "Press banca", "Remo con barra", "Press militar", "Curl de piernas", "Plancha"],
+  sup: ["Press banca", "Remo con barra", "Press militar", "Curl de bíceps con barra", "Extensión de tríceps en polea"],
+  inf: ["Sentadilla", "Peso muerto rumano", "Hip thrust", "Curl de piernas", "Elevación de talones"],
+  push: ["Press banca", "Press militar", "Elevaciones laterales", "Extensión de tríceps en polea"],
+  pull: ["Dominadas", "Remo con barra", "Pájaros (elevación posterior)", "Curl de bíceps con barra"],
+  legs: ["Sentadilla", "Peso muerto rumano", "Hip thrust", "Extensión de piernas", "Elevación de talones"],
+  arms: ["Curl de bíceps con barra", "Curl martillo", "Extensión de tríceps en polea", "Press francés", "Elevaciones laterales"]
+};
+const GUIA = {
+  fuerza: "Primer ejercicio de cada día: 4 series de 3 a 5 repeticiones, RPE 8, con 2 a 3 minutos de descanso. Los demás: 3 series de 8 a 10 repeticiones.",
+  hipertrofia: "Todos los ejercicios: 3 series de 8 a 12 repeticiones, RPE 7 a 8, con 90 segundos de descanso.",
+  ambos: "Primer ejercicio de cada día: 4 series de 3 a 5 repeticiones (fuerza), RPE 8, con 2 a 3 minutos de descanso. Los demás: 3 series de 8 a 12 repeticiones (hipertrofia), RPE 7 a 8, con 90 segundos."
+};
+
+$("pl-dias").onclick = e => {
+  const b = e.target.closest("button[data-d]");
+  if (!b) return;
+  const d = +b.dataset.d;
+  plDias = plDias.includes(d) ? plDias.filter(x => x !== d) : [...plDias, d].sort((a, b) => a - b);
+  b.classList.toggle("on", plDias.includes(d));
+};
+$("pl-goal").onclick = e => {
+  const b = e.target.closest("button[data-g]");
+  if (!b) return;
+  plObjetivo = b.dataset.g;
+  document.querySelectorAll("#pl-goal .chip").forEach(c => c.classList.toggle("on", c === b));
+};
+
+$("pl-generar").onclick = () => {
+  if (!plDias.length) return alert("Elegí al menos un día.");
+  const nombresCat = new Set(catalogo().map(e => e.nombre));
+  const plantilla = PLANTILLAS[Math.min(plDias.length, 6)];
+  const creadas = [];
+  plDias.slice(0, plantilla.length).forEach((dia, i) => {
+    const [titulo, tipoDia] = plantilla[i];
+    const ejercicios = SLOTS[tipoDia].filter(n => nombresCat.has(n)).slice(0, 5);
+    if (!ejercicios.length) return;
+    const nombre = `${DIAS_NOMBRE[dia]} · ${titulo}`;
+    const id = uid();
+    db.rutinas.push({ id, nombre, ejercicios });
+    encolar({ t: "ins", tabla: "rutinas", fila: { id, user_id: user.id, nombre, ejercicios } });
+    creadas.push(nombre);
+  });
+  $("pl-guia").innerHTML = creadas.length
+    ? `<div class="objetivo">${creadas.map(esc).join("<br>")}</div>
+       <p class="mut"><b>Cómo entrenar:</b> ${esc(GUIA[plObjetivo])}</p>
+       <p class="mut">Las series y repeticiones no se guardan en la rutina: usá esta guía al cargar cada serie. El tipo automático se asigna según las repeticiones.</p>`
+    : '<p class="mut">No encontré ejercicios de esos grupos en tu catálogo. Agregá algunos en "Nuevo ejercicio".</p>';
+  toast(`Plan creado · ${creadas.length} rutinas`);
 };
 
 function borrarRutina(id) {
@@ -678,7 +760,10 @@ function renderRutinas() {
   $("r-lista").innerHTML = db.rutinas.length ? db.rutinas.map(r => `
     <div class="row filas">
       <div style="flex:1 1 60%"><b style="color:var(--sun)">${esc(r.nombre)}</b><div class="mut">${esc(r.ejercicios.join(" · "))}</div></div>
-      <button class="btn peligro mini fijo" onclick="borrarRutina('${r.id}')">Borrar</button>
+      <div class="row" style="flex:0 0 auto;margin:0;gap:6px">
+        <button class="btn sec mini fijo" onclick="editarRutina('${r.id}')">Editar</button>
+        <button class="btn peligro mini fijo" onclick="borrarRutina('${r.id}')">Borrar</button>
+      </div>
     </div>`).join("") : '<p class="mut">Creá tu primera rutina.</p>';
 }
 
@@ -1226,11 +1311,37 @@ function renderPasos() {
   $("paso-3").classList.toggle("ok", descansoPendiente !== null);
   $("s-estado-sesion").textContent = ses ? `${ses.series.length} series · ${ses.fecha}` : "sin sesión";
 }
+// Última sesión cerrada con ese ejercicio (no cuenta la sesión que está abierta).
+function ultimaSesionDe(ej) {
+  const previas = db.sesiones
+    .filter(s => s.id !== sesionActualId && s.series.some(x => x.ejercicio === ej))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  if (!previas.length) return null;
+  return { fecha: previas[0].fecha, xs: previas[0].series.filter(x => x.ejercicio === ej) };
+}
+function resumenUltima(u) {
+  const grupos = {};
+  u.xs.forEach(x => (grupos[tipoDe(x)] = grupos[tipoDe(x)] || []).push(x));
+  return Object.entries(grupos).map(([t, arr]) => {
+    const kgs = [...new Set(arr.map(x => x.kg))].join(" / ");
+    const reps = arr.map(x => x.reps).join(", ");
+    const rpe = promedio(arr.map(x => x.rpe).filter(v => v != null));
+    const desc = promedio(arr.map(x => x.descanso_seg).filter(v => v != null));
+    const nombreTipo = t.charAt(0).toUpperCase() + t.slice(1);
+    return `<b>${nombreTipo}</b>: ${arr.length} series · ${esc(reps)} reps · ${kgs} kg`
+      + (rpe !== null ? ` · RPE ${fmt(rpe, 1)}` : "")
+      + (desc !== null ? ` · descanso ${fmtTiempo(Math.round(desc))}` : "");
+  }).join("<br>");
+}
+
 function renderObjetivo() {
   const ej = $("s-ej").value.trim();
   const r = ej ? recomendacionesTodas().find(x => x.ej === ej) : null;
   $("s-objetivo").classList.toggle("hidden", !r);
   if (r) $("s-objetivo").innerHTML = `Próxima vez en <b>${esc(ej)}</b>: ${esc(r.objetivo)}<div class="mut" style="margin-top:4px">${esc(r.consejo)}</div>`;
+  const u = ej ? ultimaSesionDe(ej) : null;
+  $("s-ultima").classList.toggle("hidden", !u);
+  if (u) $("s-ultima").innerHTML = `Última vez (${u.fecha}):<br>${resumenUltima(u)}`;
 }
 $("s-ej").addEventListener("input", renderObjetivo);
 

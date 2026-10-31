@@ -86,6 +86,7 @@
       </div>
       <div class="chips" id="s-chips"></div>
       <div class="objetivo hidden" id="s-objetivo"></div>
+      <div class="objetivo hidden" id="s-ultima"></div>
       <div class="grid">
         <input type="text" id="s-ej" placeholder="Ejercicio" list="ej-list" style="grid-column: 1 / -1">
         <datalist id="ej-list"></datalist>
@@ -155,6 +156,27 @@
       <p class="mut" id="r-elegidos"></p>
       <button class="btn" id="r-guardar">Guardar rutina</button>
     </div>
+    <div class="card">
+      <h2>Plan semanal <small>crea rutinas que después podés editar</small></h2>
+      <p class="mut">Días que podés entrenar</p>
+      <div class="chips" id="pl-dias">
+        <button class="chip" data-d="1">Lun</button>
+        <button class="chip" data-d="2">Mar</button>
+        <button class="chip on" data-d="3">Mié</button>
+        <button class="chip" data-d="4">Jue</button>
+        <button class="chip on" data-d="5">Vie</button>
+        <button class="chip" data-d="6">Sáb</button>
+      </div>
+      <p class="mut">Objetivo</p>
+      <div class="chips" id="pl-goal">
+        <button class="chip" data-g="fuerza">Fuerza</button>
+        <button class="chip" data-g="hipertrofia">Hipertrofia</button>
+        <button class="chip on" data-g="ambos">Fuerza + hipertrofia</button>
+      </div>
+      <button class="btn cy" id="pl-generar">Generar plan</button>
+      <div id="pl-guia" style="margin-top:14px"></div>
+    </div>
+
     <div class="card">
       <h2>Nuevo ejercicio <small>se suma al catálogo</small></h2>
       <div class="grid">
