@@ -772,6 +772,14 @@ $("pl-goal").onclick = e => {
 
 $("pl-generar").onclick = () => {
   if (!plDias.length) return alert("Elegí al menos un día.");
+  // Un plan nuevo reemplaza al anterior: se borran las rutinas que empiezan con un día de la semana.
+  const esDePlan = r => /^(Lunes|Martes|Miércoles|Jueves|Viernes|Sábado) · /.test(r.nombre);
+  const viejas = db.rutinas.filter(esDePlan);
+  if (viejas.length && !confirm(`Ya tenés ${viejas.length} rutinas de un plan. ¿Reemplazarlas por el nuevo?`)) return;
+  viejas.forEach(r => {
+    db.rutinas = db.rutinas.filter(x => x.id !== r.id);
+    encolar({ t: "del", tabla: "rutinas", id: r.id });
+  });
   const nombresCat = new Set(catalogo().map(e => e.nombre));
   const plantilla = PLANTILLAS[Math.min(plDias.length, 6)];
   const creadas = [];
@@ -803,7 +811,9 @@ function borrarRutina(id) {
 }
 
 function renderRutinas() {
-  $("r-lista").innerHTML = db.rutinas.length ? db.rutinas.map(r => `
+  // Las rutinas de un plan se muestran en orden de la semana; las demás van al final.
+  const ordenDia = r => { const i = Object.values(DIAS_NOMBRE).findIndex(d => r.nombre.startsWith(d + " · ")); return i < 0 ? 99 : i; };
+  $("r-lista").innerHTML = db.rutinas.length ? db.rutinas.slice().sort((a, b) => ordenDia(a) - ordenDia(b)).map(r => `
     <div class="row filas">
       <div style="flex:1 1 60%"><b style="color:var(--sun)">${esc(r.nombre)}</b><div class="mut">${esc(r.ejercicios.join(" · "))}</div></div>
       <div class="row" style="flex:0 0 auto;margin:0;gap:6px">
