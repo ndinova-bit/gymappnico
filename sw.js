@@ -1,8 +1,13 @@
 // Service worker: permite abrir la app sin conexión.
-// Subí el número de versión cada vez que cambies index.html, así los celulares descargan la nueva copia.
-const CACHE = "gymapp-v20";
+// Subí el número de versión cada vez que cambies cualquier archivo, así los celulares descargan la nueva copia.
+const CACHE = "gymapp-v21";
 
-const ESTATICOS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.json", "./icon.svg", "./icon-192.png", "./icon-512.png"];
+const ESTATICOS = [
+  "./", "./index.html", "./styles.css",
+  "./base.js", "./almacen.js", "./sync.js", "./auth.js", "./descanso.js",
+  "./sesion.js", "./rutinas.js", "./progreso.js", "./datos.js", "./app.js",
+  "./manifest.json", "./icon.svg", "./icon-192.png", "./icon-512.png"
+];
 const CDN = [
   "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
@@ -42,5 +47,15 @@ self.addEventListener("fetch", e => {
       .then(r => { if (r && (r.ok || r.type === "opaque")) cache.put(e.request, r.clone()); return r; })
       .catch(() => null);
     return guardada || (await red) || new Response("Sin conexión", { status: 503 });
+  })());
+});
+
+// Tocar el aviso de fin de descanso vuelve a abrir la app.
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const abiertas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    if (abiertas.length) return abiertas[0].focus();
+    return self.clients.openWindow("./");
   })());
 });

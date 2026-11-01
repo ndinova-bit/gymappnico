@@ -1,27 +1,22 @@
-# Gym App
+# Gym App (gymappnico)
 
-App personal y semanal para registrar entrenamientos de gimnasio y ver el progreso.
+App personal para registrar entrenamientos, rutinas, peso corporal y progreso.
+Funciona sin conexión y sincroniza con Supabase. Se publica con GitHub Pages.
 
-## Funciones
+## Archivos
 
-- Rutinas con lista de ejercicios reutilizable.
-- Registro de series, repeticiones, peso y RPE por sesión.
-- Progreso por ejercicio: peso máximo, 1RM estimado (fórmula de Epley) y volumen por sesión.
-- Resumen semanal: sesiones y volumen frente a la semana anterior.
-- Peso corporal con promedio móvil de 7 registros.
-- Exportar e importar copia en JSON.
+- `index.html` (estructura) y `styles.css` (estilos y temas).
+- Lógica, en este orden: `base.js`, `almacen.js` (IndexedDB), `sync.js`, `auth.js`, `descanso.js`,
+  `sesion.js` (planilla y resumen), `rutinas.js` (plan y programas), `progreso.js`, `datos.js`, `app.js`.
+- `sw.js`: caché sin conexión. Subí el número `CACHE` cada vez que cambie cualquier archivo.
+- `manifest.json` e íconos.
 
-## Uso
+## Base de datos
 
-Abrí `index.html` en el navegador o publicá el repositorio con GitHub Pages.
-Los datos se guardan en el `localStorage` del navegador: no salen del dispositivo ni se sincronizan entre equipos.
+Los cambios de estructura se ejecutan a mano en el SQL Editor de Supabase.
+La v21 necesita la migración v10 (calentamientos, superseries, programas y notas por ejercicio).
+Sin esa migración la app funciona igual, pero sin esas marcas.
 
 ## Privacidad
 
-Esta app maneja peso corporal, que es un dato de salud. Mantené el repositorio privado y no lo compartas en espacios públicos.
-
-## Próximos pasos
-
-- Sincronización con Supabase y login propio, para usar varios dispositivos.
-- Temporizador de descanso entre series.
-- Modo instalable en el celular (PWA).
+Esta app maneja datos de salud (peso y entrenamiento). No subas datos, capturas ni exportaciones al repositorio.

@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#05060d">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gym">
+<meta name="description" content="Registro personal de entrenamientos, rutinas y progreso.">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>NICO · Gym</title>
@@ -28,9 +30,9 @@
     <h1>ENTRAR</h1>
     <p class="mut">Tus datos se sincronizan con tu cuenta. Podés usar la app sin conexión.</p>
     <div class="grid" style="grid-template-columns:1fr">
-      <input type="email" id="auth-email" placeholder="Correo">
-      <input type="password" id="auth-pass" placeholder="Contraseña">
-      <input type="text" id="auth-nombre" placeholder="Nombre (solo para crear cuenta)">
+      <input type="email" id="auth-email" placeholder="Correo" autocomplete="email" aria-label="Correo">
+      <input type="password" id="auth-pass" placeholder="Contraseña" autocomplete="current-password" aria-label="Contraseña">
+      <input type="text" id="auth-nombre" placeholder="Nombre (solo para crear cuenta)" autocomplete="name" aria-label="Nombre">
     </div>
     <div class="row">
       <button class="btn" id="auth-entrar">Entrar</button>
@@ -60,7 +62,7 @@
     <h1>NUEVA CLAVE</h1>
     <p class="mut">Elegí la contraseña que vas a usar desde ahora.</p>
     <div class="grid" style="grid-template-columns:1fr">
-      <input type="password" id="nueva-pass" placeholder="Nueva contraseña (mín. 6 caracteres)">
+      <input type="password" autocomplete="new-password" aria-label="Nueva contraseña" id="nueva-pass" placeholder="Nueva contraseña (mín. 6 caracteres)">
     </div>
     <div class="row">
       <button class="btn" id="nueva-guardar">Guardar contraseña</button>
@@ -69,54 +71,48 @@
   </div>
 </section>
 
+<!-- CARGANDO -->
+<section id="cargando" class="esqueleto hidden" aria-label="Cargando" aria-busy="true">
+  <div class="esq-card"><i class="esq l1"></i><i class="esq l2"></i><i class="esq l3"></i></div>
+  <div class="esq-card"><i class="esq l2"></i><i class="esq alto"></i><i class="esq l3"></i></div>
+  <div class="esq-card"><i class="esq l1"></i><i class="esq l3"></i></div>
+</section>
+
 <main id="app" class="hidden">
 
   <!-- SESIÓN -->
   <section id="vista-sesion">
+    <div class="card hoy-card" id="hoy">
+      <h2>¿Qué entreno hoy? <small>según lo que descansó cada músculo</small></h2>
+      <div id="hoy-cuerpo"></div>
+    </div>
+
     <div class="card">
-      <h2>Registrar entrenamiento <small id="s-estado-sesion">sin sesión</small></h2>
-      <div class="pasos">
-        <div class="paso" id="paso-1">1 · Rutina</div>
-        <div class="paso" id="paso-2">2 · Serie</div>
-        <div class="paso" id="paso-3">3 · Descanso</div>
-      </div>
+      <h2>Entrenamiento <small id="s-estado-sesion">sin sesión</small></h2>
       <div class="grid">
-        <input type="date" id="s-fecha">
-        <select id="s-rutina"></select>
+        <input type="date" id="s-fecha" aria-label="Fecha de la sesión">
+        <select id="s-rutina" aria-label="Cargar una rutina"></select>
       </div>
-      <div class="chips" id="s-chips"></div>
-      <div class="objetivo hidden" id="s-objetivo"></div>
-      <div class="objetivo hidden" id="s-ultima"></div>
-      <div class="grid">
-        <input type="text" id="s-ej" placeholder="Ejercicio" list="ej-list" style="grid-column: 1 / -1">
+      <div id="planilla" class="planilla" aria-live="polite"></div>
+      <div class="agregar-ej">
+        <input type="text" id="s-ej" placeholder="Agregar ejercicio…" list="ej-list" aria-label="Agregar ejercicio">
         <datalist id="ej-list"></datalist>
-      </div>
-      <div class="grid">
-        <input type="number" id="s-series" placeholder="Series" min="1" value="3" inputmode="numeric">
-        <input type="number" id="s-reps" placeholder="Reps" min="1" value="10" inputmode="numeric">
-        <input type="text" id="s-peso" placeholder="Kg" inputmode="decimal">
-        <input type="text" id="s-rpe" placeholder="RPE 1-10" inputmode="decimal">
-        <select id="s-tipo" aria-label="Tipo de serie">
-          <option value="auto">Tipo: automático</option>
-          <option value="fuerza">Fuerza</option>
-          <option value="hipertrofia">Hipertrofia</option>
-          <option value="resistencia">Resistencia</option>
-        </select>
+        <button class="btn sec fijo" id="s-agregar-ej">Agregar</button>
       </div>
       <div class="row">
-        <button class="btn" id="s-agregar">Agregar serie(s)</button>
-        <button class="btn cy" id="s-hecho">Serie hecha</button>
         <button class="btn sec" id="s-repetir">Repetir última sesión</button>
-        <button class="btn sec" id="s-cerrar">Cerrar sesión</button>
+        <button class="btn cy hidden" id="s-cerrar">Terminar sesión</button>
       </div>
-      <p class="mut">Cada serie se guarda en cuanto la agregás, aunque no tengas conexión.</p>
+      <p class="mut" id="s-kcal"></p>
+      <textarea id="s-nota" class="hidden" rows="2" maxlength="300" placeholder="Nota de la sesión: cómo te sentiste, sueño, molestias…" aria-label="Nota de la sesión"></textarea>
+      <p class="mut ayuda">Tocá ✓ al terminar cada serie: se guarda (aunque no tengas conexión) y arranca el descanso. Tocá el número de la serie para marcarla como calentamiento (C) o descendente (D).</p>
     </div>
 
     <div class="card">
       <h2>Descanso <small id="rs-info">entre series</small></h2>
       <div class="cronos">
-        <div class="reloj-box"><small>Cronómetro</small><div class="reloj" id="rs-cron">0:00</div></div>
-        <div class="reloj-box"><small>Temporizador</small><div class="reloj" id="tm-cron">--:--</div></div>
+        <button class="reloj-box" aria-label="Abrir cronómetro"><small>Cronómetro</small><div class="reloj" id="rs-cron">0:00</div></button>
+        <button class="reloj-box" aria-label="Abrir temporizador"><small>Temporizador</small><div class="reloj" id="tm-cron">--:--</div></button>
       </div>
       <div class="row">
         <button class="btn cy" id="rs-toggle">Iniciar</button>
@@ -124,21 +120,11 @@
       </div>
       <h2 style="margin-top:12px">Temporizador</h2>
       <div class="row">
-        <input type="number" id="tm-seg" value="90" min="5" inputmode="numeric" placeholder="Segundos">
+        <input type="number" id="tm-seg" value="90" min="5" inputmode="numeric" placeholder="Segundos" aria-label="Segundos del temporizador">
         <button class="btn sec fijo" id="tm-iniciar">Iniciar</button>
         <button class="btn peligro fijo" id="tm-cancelar">Cancelar</button>
       </div>
       <p class="mut" id="tm-estado">Elegí los segundos y tocá Iniciar. Suena y vibra al terminar.</p>
-    </div>
-
-    <div class="card">
-      <h2>Sesión actual <small id="s-info"></small></h2>
-      <table>
-        <thead><tr><th>Ejercicio</th><th>Series</th><th>Reps</th><th>Kg</th><th>RPE</th><th></th></tr></thead>
-        <tbody id="s-tabla"></tbody>
-      </table>
-      <p class="mut" id="s-kcal"></p>
-      <textarea id="s-nota" rows="2" maxlength="300" placeholder="Nota de la sesión: cómo te sentiste, sueño, molestias…" aria-label="Nota de la sesión"></textarea>
     </div>
 
     <div class="card">
@@ -152,7 +138,7 @@
     <div class="card">
       <h2>Nueva rutina</h2>
       <div class="grid" style="grid-template-columns:1fr">
-        <input type="text" id="r-nombre" placeholder="Nombre (ej: Día 1 - Empuje)">
+        <input type="text" id="r-nombre" placeholder="Nombre (ej: Día 1 - Empuje)" aria-label="Nombre de la rutina">
       </div>
       <p class="mut">Tocá los ejercicios en el orden que los vas a hacer.</p>
       <div id="r-picker"></div>
@@ -181,11 +167,18 @@
     </div>
 
     <div class="card">
+      <h2>Programas <small>con progresión y semana de descarga automáticas</small></h2>
+      <div id="pg-actual"></div>
+      <div class="progs" id="pg-lista"></div>
+      <p class="mut">Cada programa crea sus rutinas con series, repeticiones y descanso. Cuando todas las series llegan al tope de repeticiones, la planilla te sugiere subir la carga. Cada 4 semanas hay una de descarga.</p>
+    </div>
+
+    <div class="card">
       <h2>Nuevo ejercicio <small>se suma al catálogo</small></h2>
       <div class="grid">
-        <input type="text" id="ej-nuevo-nombre" placeholder="Nombre" style="grid-column: 1 / -1">
-        <select id="ej-nuevo-grupo"></select>
-        <select id="ej-nuevo-tipo">
+        <input type="text" id="ej-nuevo-nombre" placeholder="Nombre" style="grid-column: 1 / -1" aria-label="Nombre del ejercicio">
+        <select id="ej-nuevo-grupo" aria-label="Grupo muscular"></select>
+        <select id="ej-nuevo-tipo" aria-label="Tipo de ejercicio">
           <option value="fuerza">Fuerza</option>
           <option value="cardio">Cardio</option>
         </select>
@@ -241,6 +234,22 @@
     </div>
 
     <div class="card">
+      <h2>Series por músculo <small>últimos 7 días · rango orientativo 10 a 20</small></h2>
+      <div id="vg-lista"></div>
+      <p class="mut">Cuenta las series de trabajo (sin calentamientos). Es una referencia general; no reemplaza a tu profesor.</p>
+    </div>
+
+    <div class="card">
+      <h2>Tu año <small>cada cuadradito es un día</small></h2>
+      <div class="cal-scroll" id="cal-scroll">
+        <div class="cal-meses" id="cal-meses"></div>
+        <div class="cal-grilla" id="cal-grilla"></div>
+      </div>
+      <div class="cal-ley"><span class="mut">Menos</span><i class="cal-c n0"></i><i class="cal-c n1"></i><i class="cal-c n2"></i><i class="cal-c n3"></i><i class="cal-c n4"></i><span class="mut">Más</span></div>
+      <p class="mut" id="cal-resumen"></p>
+    </div>
+
+    <div class="card">
       <h2>Tu peso <small id="pr-rango"></small></h2>
       <div class="chips" id="rango-filtro">
         <button class="chip on" data-r="30">30 días</button>
@@ -263,8 +272,8 @@
     <div class="card">
       <h2>Progreso por ejercicio</h2>
       <div class="grid">
-        <select id="p-ej"></select>
-        <select id="p-metrica">
+        <select id="p-ej" aria-label="Ejercicio"></select>
+        <select id="p-metrica" aria-label="Métrica">
           <option value="max">Peso máximo</option>
           <option value="e1rm">1RM estimado (Epley)</option>
           <option value="vol">Volumen por sesión</option>
@@ -303,8 +312,8 @@
     <div class="card">
       <h2>Registrar peso</h2>
       <div class="grid">
-        <input type="date" id="pc-fecha">
-        <input type="text" id="pc-kg" placeholder="Kg" inputmode="decimal">
+        <input type="date" id="pc-fecha" aria-label="Fecha del peso">
+        <input type="text" id="pc-kg" placeholder="Kg" inputmode="decimal" aria-label="Peso en kilos">
       </div>
       <button class="btn" id="pc-guardar">Guardar peso</button>
     </div>
@@ -312,7 +321,7 @@
     <div class="card">
       <h2>Meta <small>se guarda solo en este celular</small></h2>
       <div class="row">
-        <input type="text" id="meta-kg" placeholder="Peso objetivo (kg)" inputmode="decimal">
+        <input type="text" id="meta-kg" placeholder="Peso objetivo (kg)" inputmode="decimal" aria-label="Peso objetivo">
         <button class="btn sec fijo" id="meta-guardar">Guardar meta</button>
         <button class="btn peligro fijo" id="meta-borrar">Quitar</button>
       </div>
@@ -326,6 +335,10 @@
 
   <!-- DATOS -->
   <section id="vista-datos" class="hidden">
+    <div class="card hidden aviso-mig" id="aviso-migracion">
+      <h2>Falta un paso en la base</h2>
+      <p class="mut">Para guardar calentamientos, superseries, programas y notas por ejercicio hay que ejecutar <b>migracion_v10.sql</b> en Supabase → SQL Editor. Mientras tanto, la app funciona igual pero sin esas marcas.</p>
+    </div>
     <div class="card hidden" id="admin-card">
       <h2>Usuarios <small>solo administrador</small></h2>
       <div id="admin-lista"></div>
@@ -335,7 +348,7 @@
       <div class="grid">
         <div>
           <div class="mut" style="margin-bottom:6px">Días que podés entrenar por semana</div>
-          <select id="pref-dias">
+          <select id="pref-dias" aria-label="Días por semana">
             <option value="1">1 día</option><option value="2">2 días</option><option value="3">3 días</option>
             <option value="4">4 días</option><option value="5">5 días</option><option value="6">6 días</option>
           </select>
@@ -348,7 +361,7 @@
       <div class="grid">
         <div>
           <div class="mut" style="margin-bottom:6px">Tema visual</div>
-          <select id="pref-tema">
+          <select id="pref-tema" aria-label="Tema visual">
             <option value="neon">Neón</option>
             <option value="acero">Acero</option>
             <option value="retro">Retro arcade</option>
@@ -359,16 +372,36 @@
           <button class="btn sec" id="pref-gym" style="width:100%">Desactivada</button>
         </div>
         <div>
+          <div class="mut" style="margin-bottom:6px">Descanso por defecto</div>
+          <select id="pref-descanso" aria-label="Descanso por defecto">
+            <option value="60">1:00</option><option value="90">1:30</option><option value="120">2:00</option>
+            <option value="150">2:30</option><option value="180">3:00</option>
+          </select>
+        </div>
+        <div>
+          <div class="mut" style="margin-bottom:6px">Aviso con el celular bloqueado</div>
+          <button class="btn sec" id="pref-avisos" style="width:100%">Desactivados</button>
+        </div>
+        <div>
           <div class="mut" style="margin-bottom:6px">Animaciones</div>
           <button class="btn sec" id="pref-calmo" style="width:100%">Solo momentos clave</button>
         </div>
       </div>
-      <p class="mut">El modo sin conexión guarda todo en el celular y lo sube cuando vuelve la red. Los días por semana definen tu racha semanal.</p>
+      <p class="mut">El modo sin conexión guarda todo en el celular y lo sube cuando vuelve la red. Los días por semana definen tu racha semanal. En iPhone, el aviso con el celular bloqueado funciona solo con la app instalada en la pantalla de inicio.</p>
     </div>
     <div class="card">
       <h2>Copia de seguridad</h2>
-      <p class="mut">Podés descargar todos tus datos en JSON cuando quieras.</p>
-      <button class="btn cy" id="d-exportar">Exportar JSON</button>
+      <p class="mut">Descargá tus datos cuando quieras. El CSV se abre con Excel.</p>
+      <div class="row">
+        <button class="btn cy" id="d-csv">Exportar CSV</button>
+        <button class="btn sec" id="d-exportar">Exportar JSON</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Importar historial <small>CSV de esta app, Strong o Hevy</small></h2>
+      <p class="mut">Se saltean las fechas que ya tenés cargadas, así no se duplica nada. Los ejercicios en inglés se pasan a los del catálogo cuando coinciden.</p>
+      <button class="btn sec" id="d-importar">Elegir archivo CSV</button>
+      <input type="file" id="d-archivo" accept=".csv,text/csv" class="hidden" aria-label="Archivo CSV">
     </div>
     <div class="card">
       <h2>Zona peligrosa</h2>
@@ -378,16 +411,16 @@
   </section>
 </main>
 
-<nav class="tabs hidden" id="tabs">
-  <button data-tab="sesion" class="on"><span class="ico">🏋️</span>Sesión</button>
-  <button data-tab="rutinas"><span class="ico">📋</span>Rutinas</button>
-  <button data-tab="progreso"><span class="ico">📈</span>Progreso</button>
-  <button data-tab="peso"><span class="ico">⚖️</span>Peso</button>
-  <button data-tab="datos"><span class="ico">⚙️</span>Datos</button>
+<nav class="tabs hidden" id="tabs" aria-label="Secciones">
+  <button data-tab="sesion" class="on" aria-current="page"><span class="ico" aria-hidden="true">🏋️</span>Sesión</button>
+  <button data-tab="rutinas"><span class="ico" aria-hidden="true">📋</span>Rutinas</button>
+  <button data-tab="progreso"><span class="ico" aria-hidden="true">📈</span>Progreso</button>
+  <button data-tab="peso"><span class="ico" aria-hidden="true">⚖️</span>Peso</button>
+  <button data-tab="datos"><span class="ico" aria-hidden="true">⚙️</span>Datos</button>
 </nav>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<div id="modo" class="modo hidden">
+<div id="modo" class="modo hidden" role="dialog" aria-label="Descanso">
   <div class="modo-fondo"></div>
   <div class="modo-cont">
     <div class="modo-tipo" id="modo-tipo">Descanso</div>
@@ -405,6 +438,7 @@
       <div class="modo-tiempo" id="modo-tiempo">0:00</div>
     </div>
     <div class="modo-sub" id="modo-sub"></div>
+    <div class="modo-sig" id="modo-sig"></div>
     <div class="modo-ajuste hidden" id="modo-ajuste">
       <button class="chip" data-s="-15">−15 s</button>
       <button class="chip" data-s="15">+15 s</button>
@@ -416,8 +450,28 @@
     </div>
   </div>
 </div>
-<div id="hito" class="hito-pop hidden"></div>
+<div id="hito" class="hito-pop hidden" role="status" aria-live="polite"></div>
+<div id="deshacer" class="deshacer" role="status" aria-live="polite">
+  <span id="deshacer-txt"></span>
+  <button id="deshacer-btn">Deshacer</button>
+</div>
+<div id="resumen" class="resumen hidden" role="dialog" aria-label="Resumen de la sesión">
+  <div class="res-fondo"></div>
+  <div class="res-cont card">
+    <div id="res-cuerpo"></div>
+    <button class="btn cy" id="res-cerrar" style="width:100%;margin-top:14px">Listo</button>
+  </div>
+</div>
 
+<script src="base.js"></script>
+<script src="almacen.js"></script>
+<script src="sync.js"></script>
+<script src="auth.js"></script>
+<script src="descanso.js"></script>
+<script src="sesion.js"></script>
+<script src="rutinas.js"></script>
+<script src="progreso.js"></script>
+<script src="datos.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
