@@ -76,6 +76,8 @@ async function sincronizar() {
   sincronizando = true;
   try {
     await almacenListo;
+    // Con la copia local de la cuenta puede no haber una sesión confirmada todavía: no se sube nada hasta tenerla.
+    if (!(await sb.auth.getSession()).data?.session) return;
     await detectarEsquema();
     while (cola.length) {
       const op = cola[0];
@@ -84,7 +86,7 @@ async function sincronizar() {
       const { error } = await ejecutar(op);
       if (error) {
         // Sin "code" suele ser un corte de red: se conserva el cambio y se reintenta después.
-        if (!error.code) break;
+        if (!error.code || error.status === 401 || ["PGRST301", "PGRST302"].includes(error.code)) break;
         // Falta una columna nueva: se marca y se reintenta sin ella.
         if (ERR_COLUMNA.includes(error.code) && esquemaOK.v10 !== false) { esquemaOK.v10 = false; continue; }
         // Un error del servidor no debe trabar la cola.

@@ -42,6 +42,7 @@ $("salir").onclick = async () => {
   if (cola.length && !confirm(`Hay ${cola.length} cambio(s) sin subir. Si salís, se pierden. ¿Continuar?`)) return;
   cola = []; db = DB_VACIA(); sesionActualId = null; borrador = null;
   localStorage.removeItem(K_BORRADOR);
+  localStorage.removeItem(K_CUENTA);
   guardarTodo();
   await sb.auth.signOut();
 };
@@ -64,18 +65,38 @@ function mostrarVista() {
   $("salir").classList.toggle("hidden", !user || recup);
 }
 
+// Copia de la cuenta en el celular: permite abrir la app sin conexión.
+const K_CUENTA = "gymapp_cuenta";
+function guardarCuentaLocal() {
+  try { if (user && cuenta) localStorage.setItem(K_CUENTA, JSON.stringify({ user: { id: user.id, email: user.email }, cuenta })); } catch (e) {}
+}
+function cuentaLocal() {
+  try { return JSON.parse(localStorage.getItem(K_CUENTA)); } catch (e) { return null; }
+}
+
 async function cargarCuenta() {
-  const { data, error } = await sb.from("cuentas")
-    .select("id,correo,nombre,aprobado,es_admin").eq("id", user.id).maybeSingle();
-  cuenta = error ? null : data;
+  let data = null, error = null;
+  try {
+    // Con mala señal la consulta puede quedar colgada: se espera 6 segundos como máximo.
+    ({ data, error } = await Promise.race([
+      sb.from("cuentas").select("id,correo,nombre,aprobado,es_admin").eq("id", user.id).maybeSingle(),
+      new Promise(r => setTimeout(() => r({ data: null, error: { message: "tiempo agotado" } }), 6000))
+    ]));
+  } catch (e) { error = e; }
+  if (!error) { cuenta = data; if (data) guardarCuentaLocal(); return; }
+  // Sin conexión o con error de red: se usa la copia guardada si es de la misma cuenta.
+  const l = cuentaLocal();
+  cuenta = l && l.user.id === user.id ? l.cuenta : null;
 }
 
 sb.auth.onAuthStateChange((event, session) => {
   // El enlace del correo de recuperación dispara este evento.
   if (event === "PASSWORD_RECOVERY") modoRecuperacion = true;
+  if (!session) { try { localStorage.removeItem(K_CUENTA); } catch (e) {} }
+  // Si la app ya está abierta con esta misma cuenta (por ejemplo, con la copia local), no se vuelve a la pantalla de carga.
+  const yaAbierta = !!(user && session?.user && user.id === session.user.id && cuenta);
   user = session?.user ?? null;
-  cuenta = null;
-  cargandoCuenta = !!user;
+  if (!yaAbierta) { cuenta = null; cargandoCuenta = !!user; }
   mostrarVista();
   // Diferido para no hacer consultas dentro del callback de autenticación.
   setTimeout(async () => {
@@ -88,6 +109,20 @@ sb.auth.onAuthStateChange((event, session) => {
     sincronizar();
   }, 0);
 });
+
+// Arranque sin conexión: si Supabase no confirma la sesión enseguida (o no hay red),
+// se abre la app con los datos guardados en el celular. Si luego la sesión se confirma, sigue igual.
+setTimeout(async () => {
+  if (user) return;
+  const l = cuentaLocal();
+  if (!l?.cuenta?.aprobado || !l.user?.id) return;
+  await almacenListo;
+  if (user) return;
+  user = l.user; cuenta = l.cuenta; cargandoCuenta = false;
+  mostrarVista();
+  restaurarBorrador();
+  renderTodo();
+}, navigator.onLine ? 8000 : 1200);
 
 $("pend-reintentar").onclick = async () => {
   cargandoCuenta = true;
