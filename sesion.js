@@ -226,10 +226,32 @@ function marcarHecha(b, f) {
     return;
   }
   if (!hayFilasPendientes()) { toast("¡Terminaste todo lo planeado! Tocá «Terminar sesión»"); return; }
+  // Prioridad: calentamiento (60 s) > descanso del programa > el que sueles tomar en este ejercicio > el medido recién > el de Preferencias.
   const seg = f.marca === "calentamiento" ? 60
-    : (b.ss ? borrador.bloques.find(x => x.ss === b.ss && x.desc)?.desc : b.desc) || (desc && desc >= 15 ? desc : null) || ajustes.descanso || 90;
+    : (b.ss ? borrador.bloques.find(x => x.ss === b.ss && x.desc)?.desc : b.desc)
+      || (b.ss ? null : descansoHabitual(b.ej))
+      || (desc && desc >= 15 ? desc : null) || ajustes.descanso || 90;
   $("tm-seg").value = seg;
   iniciarTemporizador(seg);
+}
+
+// Descanso habitual de un ejercicio: la mediana de lo que descansaste entre series de trabajo
+// en tus últimas 3 sesiones con ese ejercicio. La primera serie de cada sesión no cuenta,
+// porque su "descanso" incluye el cambio de máquina. Hacen falta al menos 2 datos.
+function descansoHabitual(ej) {
+  const ultimas = db.sesiones
+    .filter(s => s.series.some(x => x.ejercicio === ej))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+    .slice(-3);
+  const vals = [];
+  ultimas.forEach(s => {
+    s.series.filter(x => x.ejercicio === ej && esTrabajo(x)).slice(1).forEach(x => {
+      if (x.descanso_seg >= 20 && x.descanso_seg <= 600) vals.push(x.descanso_seg);
+    });
+  });
+  if (vals.length < 2) return null;
+  vals.sort((a, b) => a - b);
+  return Math.round(vals[Math.floor(vals.length / 2)] / 5) * 5;
 }
 
 function siguienteEnSuperserie(b) {
