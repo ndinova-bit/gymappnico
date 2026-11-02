@@ -200,6 +200,13 @@ $("pl-generar").onclick = () => {
 // Cada 4 semanas, una de descarga (menos series y 10 % menos de peso).
 const PROGRAMAS = {
   ppl: { nombre: "Empuje / Tirón / Piernas", desc: "6 días · dos vueltas por semana", dias: [["Empuje A", "push"], ["Tirón A", "pull"], ["Piernas A", "legs"], ["Empuje B", "push"], ["Tirón B", "pull"], ["Piernas B", "legs"]] },
+  ppl3: { nombre: "Empuje / Tirón / Piernas · 3 días", desc: "3 días · cada grupo una vez por semana, ideal con poco tiempo", dias: [["Empuje", "push"], ["Tirón", "pull"], ["Piernas", "legs"]],
+    // Con una sola vuelta por semana, cada día lleva una lista propia y completa.
+    fijos: {
+      push: ["Press banca", "Press militar", "Press inclinado con mancuernas", "Elevaciones laterales", "Extensión de tríceps en polea"],
+      pull: ["Dominadas", "Remo con barra", "Face pull", "Curl de bíceps con barra", "Curl martillo"],
+      legs: ["Sentadilla", "Peso muerto rumano", "Prensa 45°", "Curl de piernas", "Elevación de talones"]
+    } },
   tp: { nombre: "Torso / Pierna", desc: "4 días · cada músculo 2 veces por semana", dias: [["Torso A", "sup"], ["Pierna A", "inf"], ["Torso B", "sup"], ["Pierna B", "inf"]] },
   fb: { nombre: "Full body", desc: "3 días · ideal para empezar o con poco tiempo", dias: [["Full body A", "fb"], ["Full body B", "fb"], ["Full body C", "fb"]] },
   w531: { nombre: "5/3/1", desc: "4 días · fuerza en los 4 básicos, ciclos de 4 semanas" }
@@ -259,7 +266,8 @@ function crearPrograma(k) {
   } else {
     const usados = new Set();
     p.dias.forEach(([tit, tipoDia]) => {
-      const ejercicios = elegirEjercicios(tipoDia, "ambos", usados, cat);
+      const fijos = (p.fijos?.[tipoDia] || []).filter(n => cat.has(n));
+      const ejercicios = fijos.length >= 3 ? fijos : elegirEjercicios(tipoDia, "ambos", usados, cat);
       if (!ejercicios.length) return;
       ejercicios.forEach(n => usados.add(n));
       nuevas.push({ id: uid(), nombre: `Programa · ${tit}`, ejercicios, esquema: { prog: k, inicio, ciclo: 4, ej: esquemaPara(ejercicios, "ambos") } });
