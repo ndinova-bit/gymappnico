@@ -529,3 +529,33 @@ body.gym .bl-tit b { font-size: 19px; }
 }
 .aviso-mig { border-color: rgba(255,230,0,.55); }
 .aviso-mig h2 { color: var(--sun); text-shadow: none; }
+
+/* ---- v22: planilla más clara, menú "Más" en el celular y dos columnas en la compu ---- */
+/* ✓ pendiente: neutro. Hecha: verde lleno. Así se distingue lo hecho de lo que falta. */
+.f-ok { border-color: var(--line); background: rgba(255,255,255,.04); color: var(--mut); }
+.fila.hecha .f-ok { border-color: var(--lime); }
+/* Más contraste en lo chico */
+.f-ant { font-size: 13px; color: #9aa6cc; }
+.fila.cab { font-size: 11px; color: #9aa6cc; }
+.fila input::placeholder { color: #8591bb; }
+/* Barra de progreso de la sesión, fija arriba de la planilla */
+.pl-prog { position: sticky; top: 58px; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 8px 4px 6px; margin-bottom: 8px; background: var(--panel); border-radius: 12px; }
+.pl-prog span { font-size: 13px; font-weight: 800; color: var(--lime); white-space: nowrap; }
+.pl-prog .barra { flex: 1; margin: 0; }
+/* Menú "Más": en pantallas chicas Superserie, Nota y Quitar quedan detrás de un botón */
+.bl-acc .chip-mas { display: none; }
+@media (max-width: 600px) {
+  .bl-acc .chip-mas { display: inline-block; }
+  .bl-acc .chip-sec { display: none; }
+  .bl-acc.mas-abierto .chip-sec { display: inline-block; }
+}
+/* Fecha y rutina una debajo de la otra en el celular */
+@media (max-width: 480px) { #vista-sesion .grid { grid-template-columns: 1fr; } }
+/* Compu: planilla a la izquierda, descanso a la derecha */
+@media (min-width: 1100px) {
+  main:has(#vista-sesion:not(.hidden)) { max-width: 1280px; }
+  #vista-sesion { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr); gap: 18px; align-items: start; }
+  #vista-sesion .hoy-card { grid-column: 1 / -1; }
+  #vista-sesion .card { margin-bottom: 0; }
+  #vista-sesion .card:has(#rs-toggle) { position: sticky; top: 76px; }
+}

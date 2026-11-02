@@ -159,3 +159,6 @@ function ejerciciosConocidos() {
   (db.ejercicios || []).forEach(x => set.add(x.nombre));
   return [...set].sort();
 }
+
+// Bloques de la planilla con el menú "Más" abierto (solo en pantallas chicas).
+const masAbiertos = new Set();

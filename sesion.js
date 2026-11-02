@@ -319,6 +319,7 @@ pl.addEventListener("click", e => {
     b.filas.unshift(filaNueva(r25(ref * 0.5), 8, "calentamiento"), filaNueva(r25(ref * 0.7), 5, "calentamiento"), filaNueva(r25(ref * 0.85), 3, "calentamiento"));
     toast("Calentamiento: 50 %, 70 % y 85 % del peso de trabajo");
   }
+  if (acc === "mas") { if (masAbiertos.has(b.id)) masAbiertos.delete(b.id); else masAbiertos.add(b.id); }
   if (acc === "ss") alternarSuperserie(b);
   if (acc === "nota") editarNotaEjercicio(b.ej);
   if (acc === "quitar") return quitarBloque(b);
@@ -631,7 +632,10 @@ function renderPlanilla() {
     pl.innerHTML = `<p class="mut vacio">Elegí una rutina, tocá «Repetir última sesión» o agregá un ejercicio para armar la planilla.</p>`;
     return;
   }
-  pl.innerHTML = bl.map((b, i) => {
+  const totF = bl.reduce((a, b) => a + b.filas.length, 0);
+  const hechasT = bl.reduce((a, b) => a + b.filas.filter(f => f.hecho).length, 0);
+  const progreso = `<div class="pl-prog" aria-label="Progreso de la sesión"><span>${hechasT}/${totF} series</span><div class="barra"><div style="width:${totF ? Math.round(hechasT / totF * 100) : 0}%"></div></div></div>`;
+  pl.innerHTML = progreso + bl.map((b, i) => {
     const u = ultimaSesionDe(b.ej);
     const nota = notaDe(b.ej);
     let nTrab = 0;
@@ -663,12 +667,13 @@ function renderPlanilla() {
         ${b.meta ? `<div class="bl-meta">${esc(b.meta)}</div>` : ""}
         <div class="fila cab"><span>Serie</span><span>Antes</span><span>Kg</span><span>Reps</span><span>RPE</span><span></span></div>
         ${filas}
-        <div class="bl-acc">
+        <div class="bl-acc ${masAbiertos.has(b.id) ? "mas-abierto" : ""}">
           <button class="chip" data-acc="add">+ Serie</button>
           <button class="chip" data-acc="cal">+ Calentamiento</button>
-          <button class="chip" data-acc="ss">${b.ss ? "Separar" : "Superserie ↓"}</button>
-          <button class="chip" data-acc="nota">Nota</button>
-          <button class="chip peligro" data-acc="quitar">Quitar</button>
+          <button class="chip chip-mas" data-acc="mas" aria-expanded="${masAbiertos.has(b.id)}">${masAbiertos.has(b.id) ? "Menos ▴" : "Más ▾"}</button>
+          <button class="chip chip-sec" data-acc="ss">${b.ss ? "Separar" : "Superserie ↓"}</button>
+          <button class="chip chip-sec" data-acc="nota">Nota</button>
+          <button class="chip peligro chip-sec" data-acc="quitar">Quitar</button>
         </div>
       </div>`;
   }).join("");
