@@ -62,6 +62,11 @@ async function notificar(titulo, cuerpo) {
   } catch (e) {}
 }
 
+// Color según lo que falta: naranja de 20 a 11 s, rojo de 10 a 1 s.
+function colorResta(el, resta) {
+  el.classList.toggle("alerta", resta > 10 && resta <= 20);
+  el.classList.toggle("urgente", resta > 0 && resta <= 10);
+}
 function tickTemporizador() {
   const resta = Math.ceil((tmFin - Date.now()) / 1000);
   if (resta <= 0) {
@@ -70,12 +75,14 @@ function tickTemporizador() {
     $("tm-estado").textContent = "¡Terminó el descanso!";
     $("tm-cron").textContent = "0:00";
     $("tm-cron").classList.add("fin");
+    colorResta($("tm-cron"), 0);
     avisarFin();
     pintarModo();
     return;
   }
   $("tm-estado").textContent = "Quedan " + fmtTiempo(resta);
   $("tm-cron").textContent = fmtTiempo(resta);
+  colorResta($("tm-cron"), resta);
 }
 function iniciarTemporizador(seg) {
   clearInterval(tmId);
@@ -95,6 +102,7 @@ function cancelarTemporizador() {
   tmFin = null;
   $("tm-cron").textContent = "--:--";
   $("tm-cron").classList.remove("fin");
+  colorResta($("tm-cron"), 0);
 }
 $("tm-iniciar").onclick = () => {
   const seg = parseInt($("tm-seg").value);
@@ -124,6 +132,7 @@ async function pantallaActiva(on) {
 function abrirModo(tipo) {
   modoTipo = tipo;
   modoEl.classList.remove("fin");
+  colorResta(modoEl, 0);
   $("modo-arco").style.strokeDasharray = CIRC;
   modoEl.classList.remove("hidden");
   pintarModo();
@@ -135,6 +144,7 @@ function cerrarModo() {
   clearInterval(abrirModo.t);
   modoEl.classList.add("hidden");
   modoEl.classList.remove("fin");
+  colorResta(modoEl, 0);
   modoTipo = null;
   pantallaActiva(false);
 }
@@ -144,6 +154,7 @@ function pintarModo() {
   const arco = $("modo-arco");
   $("modo-sig").textContent = modoTipo === "tm" ? (proximaSerieTexto() || "") : "";
   if (modoTipo === "cron") {
+    colorResta(modoEl, 0);
     const corriendo = !!rsId;
     const seg = rsInicio && corriendo ? Math.floor((Date.now() - rsInicio) / 1000) : (descansoPendiente ?? 0);
     $("modo-tipo").textContent = "Cronómetro de descanso";
@@ -160,6 +171,7 @@ function pintarModo() {
   const terminado = !tmId && tmFin && Date.now() >= tmFin;
   if (terminado) {
     modoEl.classList.add("fin");
+    colorResta(modoEl, 0);
     $("modo-tiempo").textContent = "0:00";
     arco.style.strokeDashoffset = CIRC;
     $("modo-sub").textContent = "¡Listo! Volvé a la serie";
@@ -170,6 +182,7 @@ function pintarModo() {
   const resta = tmId && tmFin ? Math.max(0, Math.ceil((tmFin - Date.now()) / 1000)) : (parseInt($("tm-seg").value) || 0);
   const total = tmId ? (tmTotal || 1) : Math.max(1, parseInt($("tm-seg").value) || 1);
   $("modo-tiempo").textContent = fmtTiempo(resta);
+  colorResta(modoEl, tmId ? resta : 0);
   arco.style.strokeDashoffset = CIRC * (1 - Math.min(1, resta / total));
   $("modo-accion").textContent = tmId ? "Saltar descanso" : "Iniciar";
   $("modo-sub").textContent = tmId ? "de " + fmtTiempo(tmTotal) : "Elegí los segundos en la pantalla principal";

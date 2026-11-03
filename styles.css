@@ -559,3 +559,9 @@ body.gym .bl-tit b { font-size: 19px; }
   #vista-sesion .card { margin-bottom: 0; }
   #vista-sesion .card:has(#rs-toggle) { position: sticky; top: 76px; }
 }
+
+/* Últimos segundos del descanso: naranja (20-11 s) y rojo (10-1 s), igual en todos los temas. */
+.modo.alerta .modo-tiempo, .reloj.alerta { color: #ff8a00; text-shadow: 0 0 22px #ff8a00; transition: color .3s, text-shadow .3s; }
+.modo.urgente .modo-tiempo, .reloj.urgente { color: #ff2d2d; text-shadow: 0 0 26px #ff2d2d; animation: latido .9s ease-in-out infinite; }
+.modo.alerta .modo-anillo .arco { stroke: #ff8a00; filter: drop-shadow(0 0 8px #ff8a00); }
+.modo.urgente .modo-anillo .arco { stroke: #ff2d2d; filter: drop-shadow(0 0 10px #ff2d2d); }
