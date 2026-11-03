@@ -55,12 +55,56 @@ const lunesDe = f => { const d = new Date(f + "T00:00"); d.setDate(d.getDate() -
 const sumarDias = (f, n) => { const d = new Date(f + "T00:00"); d.setDate(d.getDate() + n); return fechaISO(d); };
 const diasEntre = (a, b) => Math.round((new Date(b + "T00:00") - new Date(a + "T00:00")) / DIA_MS);
 
-// Tipo de serie: el elegido o, si no hay, el que corresponde por repeticiones.
+// ---------- Tipo de serie: fuerza / hipertrofia / resistencia ----------
+// Criterio (Schoenfeld 2017 y 2021; Robinson/Refalo 2023-24):
+//  - La fuerza máxima se gana con cargas altas: 1 a 5 repeticiones.
+//  - La hipertrofia se logra en un rango amplio de cargas (de 6 a 30+ repeticiones) si las series
+//    terminan cerca del fallo (0 a 3 repeticiones en reserva, o sea RPE 7 a 10).
+//  - Por eso el RPE NO convierte una serie de muchas repeticiones en «fuerza»: un RPE 10 con 12 repeticiones
+//    es hipertrofia. El RPE solo decide en las series muy largas (16 o más): cerca del fallo (RPE 8+) siguen
+//    siendo hipertrofia; lejos del fallo o sin RPE, son resistencia muscular.
+//  - La carga también cuenta: 6 a 8 repeticiones con el 85 % o más de tu mejor 1RM de fuerza es fuerza.
 const TIPOS = ["fuerza", "hipertrofia", "resistencia"];
-function tipoDe(x) {
-  if (x.tipo_serie) return x.tipo_serie;
-  return x.reps <= 5 ? "fuerza" : x.reps <= 12 ? "hipertrofia" : "resistencia";
+const tipoViejo = reps => reps <= 5 ? "fuerza" : reps <= 12 ? "hipertrofia" : "resistencia";
+
+// Mejor 1RM de fuerza por ejercicio (solo series de 1 a 5 repeticiones, sin calentamientos).
+// Se calcula una vez por tanda de dibujo y se descarta enseguida, así siempre está al día.
+let _refFuerza = null;
+function refFuerza(ej) {
+  if (!_refFuerza) {
+    _refFuerza = {};
+    try {
+      db.sesiones.forEach(s => s.series.forEach(x => {
+        if (x.marca === "calentamiento" || !(x.reps >= 1 && x.reps <= 5) || !(x.kg > 0)) return;
+        const v = e1rm(x.kg, x.reps);
+        if (v > (_refFuerza[x.ejercicio] || 0)) _refFuerza[x.ejercicio] = v;
+      }));
+    } catch (e) {}
+    setTimeout(() => { _refFuerza = null; }, 0);
+  }
+  return _refFuerza[ej] || 0;
 }
+
+// Clasifica una serie a partir de repeticiones, carga y esfuerzo.
+function clasificarSerie(x) {
+  const reps = Number(x.reps), rpe = x.rpe == null || x.rpe === "" ? null : Number(x.rpe);
+  if (reps <= 5) return "fuerza";
+  const ref = x.ejercicio ? refFuerza(x.ejercicio) : 0;
+  if (reps <= 8 && ref > 0 && x.kg >= ref * 0.85) return "fuerza";
+  if (reps <= 15) return "hipertrofia";
+  return rpe !== null && rpe >= 8 ? "hipertrofia" : "resistencia";
+}
+
+// Tipo de una serie ya guardada. No se modifica nada en la base:
+//  - Si el tipo guardado difiere de la regla vieja (solo por repeticiones), lo eligió la persona (o lo
+//    clasificó esta regla al guardar) y se respeta tal cual.
+//  - Si coincide con la regla vieja, se vuelve a leer con la regla nueva (repeticiones + carga + esfuerzo).
+function tipoDe(x) {
+  if (x.tipo_serie && x.tipo_serie !== tipoViejo(x.reps)) return x.tipo_serie;
+  return clasificarSerie(x);
+}
+// Nombre corto para mostrar.
+const ETQ_TIPO = { fuerza: "Fuerza", hipertrofia: "Hipertrofia", resistencia: "Resistencia" };
 // Las series de calentamiento no cuentan para récords, 1RM, volumen ni progresión.
 const esTrabajo = x => x.marca !== "calentamiento";
 const trab = s => s.series.filter(esTrabajo);

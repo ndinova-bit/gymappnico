@@ -565,3 +565,9 @@ body.gym .bl-tit b { font-size: 19px; }
 .modo.urgente .modo-tiempo, .reloj.urgente { color: #ff2d2d; text-shadow: 0 0 26px #ff2d2d; animation: latido .9s ease-in-out infinite; }
 .modo.alerta .modo-anillo .arco { stroke: #ff8a00; filter: drop-shadow(0 0 8px #ff8a00); }
 .modo.urgente .modo-anillo .arco { stroke: #ff2d2d; filter: drop-shadow(0 0 10px #ff2d2d); }
+
+/* Zona de trabajo (fuerza / hipertrofia / resistencia) */
+.zona-tag { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .3px; border: 1px solid currentColor; vertical-align: middle; }
+.zona-tag.z-fuerza { color: var(--mag); }
+.zona-tag.z-hipertrofia { color: var(--lime, #b6ff3b); }
+.zona-tag.z-resistencia { color: var(--cyan); }

@@ -202,15 +202,27 @@ function renderEstadisticas() {
 }
 
 // Compara el 1RM promedio de las primeras sesiones con el de las últimas.
+// Ejercicios con series de fuerza: 1RM de esas series. Ejercicios que trabajás solo en hipertrofia (6 a 12 reps):
+// 1RM estimado con esas series, marcado como «est.», para que también aparezcan en el ranking.
+function e1rmHipertrofia(ses, ej) {
+  const xs = trab(ses).filter(x => x.ejercicio === ej && tipoDe(x) === "hipertrofia" && x.reps <= 12);
+  return xs.length ? Math.max(...xs.map(x => e1rm(x.kg, x.reps))) : null;
+}
 function rankingEjercicios() {
   return ejerciciosEnSesiones().map(ej => {
-    const ses = sesionesConSeries().filter(s => trab(s).some(x => x.ejercicio === ej && tipoDe(x) === "fuerza"));
+    const todas = sesionesConSeries();
+    const sesF = todas.filter(s => trab(s).some(x => x.ejercicio === ej && tipoDe(x) === "fuerza"));
+    let ses = sesF, f = e1rmSesion, est = false;
+    if (sesF.length < 2) {
+      ses = todas.filter(s => e1rmHipertrofia(s, ej) !== null);
+      f = e1rmHipertrofia; est = true;
+    }
     if (ses.length < 2) return null;
-    const vals = ses.map(s => e1rmSesion(s, ej));
+    const vals = ses.map(s => f(s, ej));
     const k = Math.min(3, Math.floor(ses.length / 2));
     const ini = promedio(vals.slice(0, k)), fin = promedio(vals.slice(-k));
     const pct = ini ? (fin - ini) / ini * 100 : 0;
-    return { ej, pct, n: ses.length, mejor: Math.max(...vals) };
+    return { ej, pct, n: ses.length, mejor: Math.max(...vals), est };
   }).filter(Boolean);
 }
 let filtroEj = "mejoran";
@@ -221,9 +233,9 @@ function renderRanking() {
     : r.sort((a, b) => b.pct - a.pct);
   $("ej-ranking").innerHTML = lista.length ? lista.map(x => `
     <button class="row filas fila-btn" data-ver="${esc(x.ej)}">
-      <div style="flex:1 1 60%;text-align:left"><b>${esc(x.ej)}</b><div class="mut">${x.n} sesiones · mejor 1RM ${fmt(x.mejor)} kg</div></div>
+      <div style="flex:1 1 60%;text-align:left"><b>${esc(x.ej)}</b><div class="mut">${x.n} sesiones · mejor 1RM ${x.est ? "est. " : ""}${fmt(x.mejor)} kg</div></div>
       <b class="${x.pct > 0 ? "pos" : x.pct < 0 ? "neg" : ""}">${x.pct > 0 ? "+" : ""}${fmt(x.pct)}%</b>
-    </button>`).join("") : '<p class="mut">Sin ejercicios para mostrar. Necesitás al menos 2 sesiones por ejercicio con series de fuerza.</p>';
+    </button>`).join("") : '<p class="mut">Sin ejercicios para mostrar. Necesitás al menos 2 sesiones por ejercicio con series de fuerza o de hipertrofia (hasta 12 repeticiones).</p>';
 }
 $("ej-filtro").onclick = e => {
   const b = e.target.closest("button[data-f]");
@@ -240,11 +252,22 @@ $("ej-ranking").onclick = e => {
   $("p-chart").scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
+// Zona en la que estás trabajando hoy un ejercicio: la que predomina en su última sesión.
+// Decide qué reglas de progresión se aplican (la fuerza se lee en kilos; la hipertrofia, en repeticiones y esfuerzo).
+function zonaActual(ej, ses) {
+  const con = ses.filter(s => trab(s).some(x => x.ejercicio === ej));
+  if (!con.length) return null;
+  const cuenta = { fuerza: 0, hipertrofia: 0, resistencia: 0 };
+  trab(con[con.length - 1]).filter(x => x.ejercicio === ej).forEach(x => cuenta[tipoDe(x)]++);
+  return ["fuerza", "hipertrofia", "resistencia"].sort((p, q) => cuenta[q] - cuenta[p])[0];
+}
+
 // Reglas de sobrecarga progresiva sobre la última sesión de cada ejercicio.
 function recomendaciones() {
   const ses = sesionesConSeries();
   const out = [];
   ejerciciosEnSesiones().forEach(ej => {
+    if (zonaActual(ej, ses) !== "fuerza") return;
     const hist = ses.filter(s => trab(s).some(x => x.ejercicio === ej && tipoDe(x) === "fuerza"));
     if (!hist.length) return;
     const ult = hist[hist.length - 1];
@@ -286,7 +309,9 @@ function recomendaciones() {
   });
   return out;
 }
-// Ejercicios de hipertrofia: la progresión se mira en repeticiones, no en 1RM.
+// Ejercicios de hipertrofia: la progresión se mira en repeticiones y en cercanía al fallo, no en 1RM.
+// Para crecer, lo mejor es terminar las series a 0-2 repeticiones del fallo (RPE 8 a 10): un RPE 9 o 10 acá
+// es lo esperado, no una señal de alarma. Cuando se llega al tope del rango, se sube la carga (doble progresión).
 function recHipertrofia(ej, ses) {
   const hist = ses.filter(s => trab(s).some(x => x.ejercicio === ej && tipoDe(x) === "hipertrofia"));
   if (!hist.length) return null;
@@ -294,16 +319,33 @@ function recHipertrofia(ej, ses) {
   const kgMax = Math.max(...xs.map(x => x.kg));
   const repsMin = Math.min(...xs.map(x => x.reps));
   const rpeProm = promedio(xs.map(x => x.rpe).filter(v => v != null));
-  if (rpeProm !== null && rpeProm >= 9) return { ej, tipo: "mantener", consejo: "Las series están muy cerca del fallo: mantené la carga y buscá una repetición más.", objetivo: `${fmt(kgMax)} kg · mismas reps` };
-  if (repsMin >= 12 && kgMax > 0) return { ej, tipo: "sube", consejo: "Llegaste al rango alto en todas las series: subí la carga y volvé a empezar desde el rango bajo.", objetivo: `${fmt(kgMax + 2.5)} kg × ${repsMin} reps` };
-  return { ej, tipo: "reps", consejo: "Sumá una repetición por serie hasta llegar a 12 y después subí la carga.", objetivo: `${fmt(kgMax)} kg · ${repsMin + 1} reps mínimas` };
+  const tope = repsMin >= 13 ? 15 : 12;
+  if (repsMin >= tope && kgMax > 0) {
+    return { ej, tipo: "sube", consejo: `Llegaste a ${tope} repeticiones en todas las series: subí la carga y volvé a empezar desde el rango bajo.`, objetivo: `${fmt(kgMax + 2.5)} kg × ${Math.max(6, tope - 4)} reps` };
+  }
+  if (rpeProm !== null && rpeProm <= 6.5) {
+    return { ej, tipo: "reps", consejo: "Estás lejos del fallo. Para crecer conviene terminar las series a 1 o 2 repeticiones del límite (RPE 8 a 9): sumá repeticiones antes de subir el peso.", objetivo: `${fmt(kgMax)} kg · ${repsMin + 2} reps, RPE 8-9` };
+  }
+  if (rpeProm !== null && rpeProm >= 9) {
+    return { ej, tipo: "reps", consejo: "Buen esfuerzo: estás en la zona de máximo estímulo para hipertrofia. Mantené el peso y sumá una repetición por serie hasta el tope; no hace falta más esfuerzo.", objetivo: `${fmt(kgMax)} kg · ${repsMin + 1} reps mínimas` };
+  }
+  return { ej, tipo: "reps", consejo: `Sumá una repetición por serie hasta llegar a ${tope} y después subí la carga.`, objetivo: `${fmt(kgMax)} kg · ${repsMin + 1} reps mínimas` };
+}
+// Series largas y livianas: sirven si llegan cerca del fallo; si no, son más resistencia que crecimiento.
+function recResistencia(ej, ses) {
+  const hist = ses.filter(s => trab(s).some(x => x.ejercicio === ej && tipoDe(x) === "resistencia"));
+  if (!hist.length) return null;
+  const xs = trab(hist[hist.length - 1]).filter(x => x.ejercicio === ej && tipoDe(x) === "resistencia");
+  const kgMax = Math.max(...xs.map(x => x.kg));
+  return { ej, tipo: "reps", consejo: "Son series de muchas repeticiones sin llegar al fallo: entrenan resistencia muscular. Si buscás más músculo, subí un poco la carga (8 a 15 repeticiones) o llevá la serie hasta RPE 8 o más.", objetivo: kgMax > 0 ? `${fmt(kgMax + 2.5)} kg · 8-15 reps` : "8-15 reps, RPE 8+" };
 }
 function recomendacionesTodas() {
   const ses = sesionesConSeries();
   const out = recomendaciones();
   ejerciciosEnSesiones().forEach(ej => {
     if (out.some(x => x.ej === ej)) return;
-    const r = recHipertrofia(ej, ses);
+    const z = zonaActual(ej, ses);
+    const r = z === "resistencia" ? recResistencia(ej, ses) : recHipertrofia(ej, ses);
     if (r) out.push(r);
   });
   return out;

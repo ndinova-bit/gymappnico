@@ -196,7 +196,7 @@ function marcarHecha(b, f) {
   const previo = mejorKgPrevio(b.ej, ses.id);
   const serie = {
     id: uid(), user_id: user.id, sesion_id: ses.id, ejercicio: b.ej, reps: v.reps, kg: v.kg, rpe: v.rpe,
-    descanso_seg: desc, tipo_serie: tipoDe({ reps: v.reps }), marca: f.marca, superserie: b.ss,
+    descanso_seg: desc, tipo_serie: clasificarSerie({ reps: v.reps, kg: v.kg, rpe: v.rpe, ejercicio: b.ej }), marca: f.marca, superserie: b.ss,
     created_at: new Date().toISOString()
   };
   ses.series.push(serie);
@@ -292,7 +292,7 @@ function actualizarHecha(b, f) {
   if (!s) return;
   const v = valorFila(f);
   if (v.error) { alert(v.error); renderSesion(); return; }
-  Object.assign(s, { kg: v.kg, reps: v.reps, rpe: v.rpe, tipo_serie: tipoDe({ reps: v.reps }) });
+  Object.assign(s, { kg: v.kg, reps: v.reps, rpe: v.rpe, tipo_serie: clasificarSerie({ reps: v.reps, kg: v.kg, rpe: v.rpe, ejercicio: s.ejercicio }) });
   encolar({ t: "upd", tabla: "series", id: s.id, cambios: { kg: s.kg, reps: s.reps, rpe: s.rpe, tipo_serie: s.tipo_serie } });
 }
 
@@ -646,6 +646,20 @@ function reconciliar() {
   }
 }
 
+// Zona de trabajo del bloque: la que predomina entre sus series (hechas o con valores a cargar).
+function zonaDeBloque(b) {
+  const cuenta = {};
+  b.filas.forEach(f => {
+    if (f.marca === "calentamiento") return;
+    const v = valorFila(f);
+    if (v.error) return;
+    const t = clasificarSerie({ reps: v.reps, kg: v.kg, rpe: v.rpe, ejercicio: b.ej });
+    cuenta[t] = (cuenta[t] || 0) + 1;
+  });
+  const orden = Object.entries(cuenta).sort((a, c) => c[1] - a[1]);
+  return orden.length ? orden[0][0] : null;
+}
+
 function renderPlanilla() {
   if (!borrador && sesionActual()) borrador = { sesionId: sesionActualId, fecha: sesionActual().fecha, rutinaId: null, bloques: [] };
   reconciliar();
@@ -677,10 +691,11 @@ function renderPlanilla() {
         </div>`;
     }).join("");
     const hechas = b.filas.filter(f => f.hecho).length;
+    const zona = zonaDeBloque(b);
     return `
       <div class="bloque ${b.ss ? "ss ss-" + b.ss : ""}" data-b="${b.id}">
         <div class="bl-cab">
-          <div class="bl-tit"><b>${esc(b.ej)}</b>${b.ss ? `<span class="ss-tag">Superserie ${b.ss}</span>` : ""}</div>
+          <div class="bl-tit"><b>${esc(b.ej)}</b>${zona ? `<span class="zona-tag z-${zona}" title="Se calcula con tus repeticiones, la carga y el esfuerzo (RPE)">${ETQ_TIPO[zona]}</span>` : ""}${b.ss ? `<span class="ss-tag">Superserie ${b.ss}</span>` : ""}</div>
           <span class="bl-cont">${hechas}/${b.filas.length}</span>
           <button class="bl-mov" data-acc="subir" aria-label="Subir ejercicio" ${i === 0 ? "disabled" : ""}>↑</button>
           <button class="bl-mov" data-acc="bajar" aria-label="Bajar ejercicio" ${i === bl.length - 1 ? "disabled" : ""}>↓</button>
