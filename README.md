@@ -23,6 +23,11 @@ Cada serie se clasifica por repeticiones, carga y esfuerzo: 1-5 reps = fuerza; 6
 6-8 reps con el 85 % o más del mejor 1RM de fuerza también es fuerza. Un RPE 10 con muchas repeticiones sigue siendo hipertrofia.
 No se modifica ningún dato guardado: las series con un tipo elegido a mano se respetan y el resto se lee con la regla nueva.
 
+## 1RM estimado (v28)
+
+Epley, sumando las repeticiones en reserva si la serie tiene RPE (10 − RPE, hasta 3). Sin RPE queda igual que antes.
+Cambia solo el cálculo que se muestra; los datos guardados no se tocan.
+
 ## Privacidad
 
 Esta app maneja datos de salud (peso y entrenamiento). No subas datos, capturas ni exportaciones al repositorio.

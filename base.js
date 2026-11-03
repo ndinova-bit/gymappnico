@@ -43,7 +43,16 @@ function hoy() {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
-function e1rm(kg, reps) { return reps === 1 ? kg : kg * (1 + reps / 30); }
+// 1RM estimado (Epley). Si la serie tiene RPE, se suman las repeticiones que te quedaban en reserva
+// (10 − RPE) para estimar cuántas habrías hecho hasta el fallo. La reserva se limita a 3 repeticiones:
+// la estimación del esfuerzo es poco precisa lejos del fallo (Robinson 2024), así que con RPE bajos
+// el resultado queda del lado conservador. Sin RPE, es Epley clásico con las repeticiones hechas.
+function e1rm(kg, reps, rpe) {
+  const r = Number(rpe);
+  const reserva = rpe != null && rpe !== "" && r >= 1 && r <= 10 ? Math.min(3, 10 - r) : 0;
+  const n = reps + reserva;
+  return n <= 1 ? kg : kg * (1 + n / 30);
+}
 function leerJSON(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch (e) { return def; } }
 const DIA_MS = 864e5;
 const promedio = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
@@ -76,7 +85,7 @@ function refFuerza(ej) {
     try {
       db.sesiones.forEach(s => s.series.forEach(x => {
         if (x.marca === "calentamiento" || !(x.reps >= 1 && x.reps <= 5) || !(x.kg > 0)) return;
-        const v = e1rm(x.kg, x.reps);
+        const v = e1rm(x.kg, x.reps, x.rpe);
         if (v > (_refFuerza[x.ejercicio] || 0)) _refFuerza[x.ejercicio] = v;
       }));
     } catch (e) {}

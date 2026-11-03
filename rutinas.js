@@ -220,7 +220,7 @@ const D531 = [
 ];
 function mejorE1rm(ej) {
   let m = 0;
-  sesionesConSeries().forEach(s => trab(s).forEach(x => { if (x.ejercicio === ej && x.reps <= 10) m = Math.max(m, e1rm(x.kg, x.reps)); }));
+  sesionesConSeries().forEach(s => trab(s).forEach(x => { if (x.ejercicio === ej && x.reps <= 10) m = Math.max(m, e1rm(x.kg, x.reps, x.rpe)); }));
   return m;
 }
 

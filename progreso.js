@@ -119,7 +119,7 @@ function renderProgresoEjercicio() {
     if (!xs.length) return;
     let v;
     if (metrica === "max") v = Math.max(...xs.map(x => x.kg));
-    if (metrica === "e1rm") v = Math.max(...xs.map(x => e1rm(x.kg, x.reps)));
+    if (metrica === "e1rm") v = Math.max(...xs.map(x => e1rm(x.kg, x.reps, x.rpe)));
     if (metrica === "vol") v = xs.reduce((a, x) => a + x.kg * x.reps, 0);
     puntos.push({ x: s.fecha.slice(5), y: Math.round(v * 10) / 10, f: s.fecha });
   });
@@ -149,7 +149,7 @@ function renderProgresoEjercicio() {
 // El 1RM solo sale de series de fuerza: en hipertrofia las repeticiones altas lo distorsionan.
 function e1rmSesion(ses, ej) {
   const xs = trab(ses).filter(x => x.ejercicio === ej && tipoDe(x) === "fuerza");
-  return xs.length ? Math.max(...xs.map(x => e1rm(x.kg, x.reps))) : null;
+  return xs.length ? Math.max(...xs.map(x => e1rm(x.kg, x.reps, x.rpe))) : null;
 }
 function ejerciciosEnSesiones() {
   const set = new Set();
@@ -206,7 +206,7 @@ function renderEstadisticas() {
 // 1RM estimado con esas series, marcado como «est.», para que también aparezcan en el ranking.
 function e1rmHipertrofia(ses, ej) {
   const xs = trab(ses).filter(x => x.ejercicio === ej && tipoDe(x) === "hipertrofia" && x.reps <= 12);
-  return xs.length ? Math.max(...xs.map(x => e1rm(x.kg, x.reps))) : null;
+  return xs.length ? Math.max(...xs.map(x => e1rm(x.kg, x.reps, x.rpe))) : null;
 }
 function rankingEjercicios() {
   return ejerciciosEnSesiones().map(ej => {
