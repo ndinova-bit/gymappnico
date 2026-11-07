@@ -7,7 +7,7 @@
 $("pc-guardar").onclick = () => {
   const fecha = $("pc-fecha").value || hoy();
   const kg = num($("pc-kg").value);
-  if (!kg || kg < 20 || kg > 400) return alert("Ingresá un peso válido.");
+  if (!kg || kg < 20 || kg > 400) return avisar("Ingresá un peso válido.");
   db.peso = db.peso.filter(p => p.fecha !== fecha);
   db.peso.push({ fecha, kg });
   db.peso.sort((a, b) => a.fecha.localeCompare(b.fecha));
@@ -29,7 +29,7 @@ function borrarPeso(fecha) {
 }
 $("meta-guardar").onclick = () => {
   const m = num($("meta-kg").value);
-  if (!m) return alert("Ingresá un peso objetivo válido.");
+  if (!m) return avisar("Ingresá un peso objetivo válido.");
   ajustes.meta = m;
   guardarTodo();
   renderTodo();
@@ -89,10 +89,25 @@ $("pref-avisos").onclick = async () => {
   guardarTodo();
   pintarAvisos();
   if (p === "granted") notificar("Avisos activados", "Te aviso cuando termine el descanso aunque bloquees el celular.");
-  else if (p === "denied") alert("El navegador bloqueó los avisos. Podés habilitarlos desde la configuración del sitio.");
+  else if (p === "denied") avisar("El navegador bloqueó los avisos. Podés habilitarlos desde la configuración del sitio.");
 };
 
-// Tema visual y modo gimnasio: se guardan en el celular y se aplican al abrir la app.
+// Pone en pantalla las preferencias que llegaron de la nube (ver sync.js).
+function aplicarPrefs() {
+  $("pref-dias").value = String(ajustes.dias || 3);
+  const d = String(ajustes.descanso || 90);
+  $("pref-descanso").value = [...$("pref-descanso").options].some(o => o.value === d) ? d : "90";
+  $("meta-kg").value = ajustes.meta || "";
+  aplicarTema();
+}
+$("d-sync").onclick = () => {
+  if (!navigator.onLine || ajustes.offline) return toast("Sin conexión: se sincroniza cuando vuelva");
+  ultimaBajada = 0;
+  sincronizar();
+  toast("Sincronizando…");
+};
+
+// Tema visual y modo gimnasio: el tema se sincroniza con tu cuenta; el modo gimnasio queda en cada celular.
 function aplicarTema() {
   const tema = ajustes.tema || "neon";
   document.documentElement.dataset.tema = tema;
@@ -140,7 +155,7 @@ async function renderAdmin() {
 }
 async function cambiarAcceso(id, aprobar) {
   const { error } = await sb.from("cuentas").update({ aprobado: aprobar }).eq("id", id);
-  if (error) return alert("Error: " + error.message);
+  if (error) return avisar("Error: " + error.message);
   toast(aprobar ? "Usuario aprobado" : "Acceso quitado");
   renderAdmin();
 }
@@ -298,10 +313,10 @@ $("d-archivo").onchange = async () => {
   const archivo = $("d-archivo").files[0];
   $("d-archivo").value = "";
   if (!archivo) return;
-  if (archivo.size > 15e6) return alert("El archivo es muy grande (más de 15 MB).");
+  if (archivo.size > 15e6) return avisar("El archivo es muy grande (más de 15 MB).");
   const filas = leerCSV(await archivo.text());
   const r = filas.length > 1 ? interpretarCSV(filas) : null;
-  if (!r || !r.filas.length) return alert("No reconocí el archivo. Sirven los CSV exportados desde esta app, Strong o Hevy.");
+  if (!r || !r.filas.length) return avisar("No reconocí el archivo. Sirven los CSV exportados desde esta app, Strong o Hevy.");
   const cat = new Set(catalogo().map(e => e.nombre));
   const fechasExistentes = new Set(sesionesConSeries().map(s => s.fecha));
   const sesiones = new Map();
@@ -315,12 +330,12 @@ $("d-archivo").onchange = async () => {
   sesiones.forEach(s => s.filas.forEach(x => { x.ej = mapearEjercicio(x.ej, cat); nombres.add(x.ej); }));
   const nuevosEj = [...nombres].filter(n => !cat.has(n));
   const nSeries = [...sesiones.values()].reduce((a, s) => a + s.filas.length, 0);
-  if (!sesiones.size) return alert(`Todas las fechas del archivo ya tienen sesiones cargadas (${salteadas} series salteadas).`);
+  if (!sesiones.size) return avisar(`Todas las fechas del archivo ya tienen sesiones cargadas (${salteadas} series salteadas).`);
   const fechas = [...sesiones.values()].map(s => s.fecha).sort();
-  if (!confirm(`Archivo de ${r.formato}: ${sesiones.size} sesiones y ${nSeries} series, del ${fechas[0]} al ${fechas[fechas.length - 1]}.`
+  if (!await confirmar(`Archivo de ${r.formato}: ${sesiones.size} sesiones y ${nSeries} series, del ${fechas[0]} al ${fechas[fechas.length - 1]}.`
     + (nuevosEj.length ? `\nSe agregan ${nuevosEj.length} ejercicios nuevos al catálogo.` : "")
     + (salteadas ? `\nSe saltean ${salteadas} series de fechas que ya tenés cargadas.` : "")
-    + "\n\n¿Importar?")) return;
+    + "\n\nNo se borra ni se modifica nada de lo que ya tenés.", { titulo: "¿Importar?", ok: "Importar" })) return;
 
   const ops = [];
   const ejFilas = nuevosEj.map(n => ({ id: uid(), user_id: user.id, nombre: n, grupo: adivinarGrupo(n), tipo: "fuerza", met: 5 }));
@@ -350,19 +365,20 @@ $("d-archivo").onchange = async () => {
 
 // ---------- Borrar todo ----------
 $("d-borrar").onclick = async () => {
-  if (!navigator.onLine) return alert("Necesitás conexión para borrar todo.");
-  if (!confirm("¿Borrar TODOS tus datos de la nube? No se puede deshacer.")) return;
-  if (prompt('Para confirmar, escribí BORRAR') !== "BORRAR") return;
+  if (!navigator.onLine) return avisar("Necesitás conexión para borrar todo.");
+  if (!await confirmar("¿Borrar TODOS tus datos de la nube? No se puede deshacer.", { titulo: "Borrar todo", ok: "Seguir", peligro: true })) return;
+  const dato = await pedirDatos({ titulo: "Confirmá el borrado", texto: "Para confirmar, escribí BORRAR en mayúsculas.", campos: [{ id: "txt", label: "Palabra de confirmación", valor: "" }], ok: "Borrar todo" });
+  if (!dato || dato.txt.trim() !== "BORRAR") return;
   confirmarPendiente();
   const tablas = ["series", "sesiones", "rutinas", "peso", "ejercicios"];
   if (esquemaOK.notas) tablas.push("notas_ejercicio");
   for (const t of tablas) {
     const { error } = await sb.from(t).delete().eq("user_id", user.id);
-    if (error) return alert("Error al borrar " + t + ": " + error.message);
+    if (error) return avisar("Error al borrar " + t + ": " + error.message);
   }
   cola = []; db = DB_VACIA(); sesionActualId = null; borrador = null;
   guardarBorrador();
   guardarTodo();
   renderTodo();
-  alert("Datos borrados.");
+  avisar("Datos borrados.", "Listo");
 };

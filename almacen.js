@@ -59,6 +59,7 @@ const almacenListo = cargarAlmacen();
 // La cola se escribe enseguida (es lo que no se puede perder);
 // la copia completa de los datos, agrupada cada 300 ms.
 function guardarTodo() {
+  revisarPrefs();   // si cambió algún ajuste sincronizable, lo deja en la cola (ver sync.js)
   try { localStorage.setItem(K_META, JSON.stringify(ajustes)); } catch (e) {}
   if (!idb) {
     try {

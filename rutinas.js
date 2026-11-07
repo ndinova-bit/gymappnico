@@ -27,8 +27,8 @@ $("ej-nuevo-guardar").onclick = () => {
   const nombre = $("ej-nuevo-nombre").value.trim();
   const grupo = $("ej-nuevo-grupo").value;
   const tipo = $("ej-nuevo-tipo").value;
-  if (!nombre) return alert("Escribí el nombre del ejercicio.");
-  if (catalogo().some(e => e.nombre.toLowerCase() === nombre.toLowerCase())) return alert("Ya existe un ejercicio con ese nombre.");
+  if (!nombre) return avisar("Escribí el nombre del ejercicio.");
+  if (catalogo().some(e => e.nombre.toLowerCase() === nombre.toLowerCase())) return avisar("Ya existe un ejercicio con ese nombre.");
   const fila = { id: uid(), user_id: user.id, nombre, grupo, tipo, met: tipo === "cardio" ? 7 : 5 };
   db.ejercicios.push(fila);
   encolar({ t: "ins", tabla: "ejercicios", fila });
@@ -52,7 +52,7 @@ function editarRutina(id) {
 }
 $("r-guardar").onclick = () => {
   const nombre = $("r-nombre").value.trim();
-  if (!nombre || !rutinaBorrador.length) return alert("Poné nombre y elegí al menos un ejercicio.");
+  if (!nombre || !rutinaBorrador.length) return avisar("Poné nombre y elegí al menos un ejercicio.");
   const id = rutinaEditandoId || uid();
   const i = db.rutinas.findIndex(x => x.id === id);
   // Al editar se conserva el esquema del programa (series, reps y descanso).
@@ -161,16 +161,16 @@ $("pl-goal").onclick = e => {
 
 const esDePlan = r => /^(Lunes|Martes|Miércoles|Jueves|Viernes|Sábado) · /.test(r.nombre);
 const esDePrograma = r => r.nombre.startsWith("Programa · ");
-function reemplazarRutinas(filtro, texto) {
+async function reemplazarRutinas(filtro, texto) {
   const viejas = db.rutinas.filter(filtro);
-  if (viejas.length && !confirm(`Ya tenés ${viejas.length} rutinas ${texto}. ¿Reemplazarlas?`)) return false;
+  if (viejas.length && !await confirmar(`Ya tenés ${viejas.length} rutinas ${texto}. Se reemplazan por las nuevas (tu historial de sesiones no se toca).`, { titulo: "¿Reemplazar rutinas?", ok: "Reemplazar" })) return false;
   viejas.forEach(r => { db.rutinas = db.rutinas.filter(x => x.id !== r.id); cola.push({ t: "del", tabla: "rutinas", id: r.id }); });
   return true;
 }
 
-$("pl-generar").onclick = () => {
-  if (!plDias.length) return alert("Elegí al menos un día.");
-  if (!reemplazarRutinas(esDePlan, "de un plan semanal")) return;
+$("pl-generar").onclick = async () => {
+  if (!plDias.length) return avisar("Elegí al menos un día.");
+  if (!await reemplazarRutinas(esDePlan, "de un plan semanal")) return;
   const nombresCat = new Set(catalogo().map(e => e.nombre));
   const plantilla = PLANTILLAS[Math.min(plDias.length, 6)];
   const creadas = [], ops = [];
@@ -240,11 +240,11 @@ $("pg-lista").onclick = e => {
   if (!b) return;
   crearPrograma(b.dataset.prog);
 };
-function crearPrograma(k) {
+async function crearPrograma(k) {
   const p = PROGRAMAS[k];
-  if (esquemaOK.v10 === false) return alert("Para usar programas falta ejecutar la migración v10 en Supabase (SQL Editor). Sin eso, las series y repeticiones del programa no se pueden guardar.");
+  if (esquemaOK.v10 === false) return avisar("Para usar programas falta ejecutar la migración v10 en Supabase (SQL Editor). Sin eso, las series y repeticiones del programa no se pueden guardar.");
   const cat = new Set(catalogo().map(e => e.nombre));
-  if (!confirm(`¿Crear el programa ${p.nombre}? Empieza esta semana (${hoy()}).`)) return;
+  if (!await confirmar(`¿Crear el programa ${p.nombre}? Empieza esta semana (${hoy()}).`, { titulo: "Crear programa", ok: "Crear" })) return;
   const inicio = lunesDe(hoy());
   const nuevas = [];
   if (k === "w531") {
@@ -252,9 +252,10 @@ function crearPrograma(k) {
       if (!cat.has(d.base)) continue;
       let base = mejorE1rm(d.base);
       if (!base) {
-        const r = prompt(`No tengo datos de ${d.base}. ¿Cuántos kilos levantás para 5 repeticiones?`);
-        if (r === null) return;
-        base = e1rm(num(r) || 0, 5);
+        const r = await pedirDatos({ titulo: d.base, texto: `No tengo datos de ${d.base}. ¿Cuántos kilos levantás para 5 repeticiones?`,
+          campos: [{ id: "kg", label: "Kilos para 5 repeticiones", tipo: "numero", valor: "" }], ok: "Seguir" });
+        if (!r) return;
+        base = e1rm(num(r.kg) || 0, 5);
         if (!base) continue;
       }
       const acc = d.acc.filter(n => cat.has(n)).slice(0, 3);
@@ -273,8 +274,8 @@ function crearPrograma(k) {
       nuevas.push({ id: uid(), nombre: `Programa · ${tit}`, ejercicios, esquema: { prog: k, inicio, ciclo: 4, ej: esquemaPara(ejercicios, "ambos") } });
     });
   }
-  if (!nuevas.length) return alert("No encontré los ejercicios del programa en tu catálogo.");
-  if (!reemplazarRutinas(esDePrograma, "de otro programa")) return;
+  if (!nuevas.length) return avisar("No encontré los ejercicios del programa en tu catálogo.");
+  if (!await reemplazarRutinas(esDePrograma, "de otro programa")) return;
   db.rutinas.push(...nuevas);
   encolarVarios(nuevas.map(r => ({ t: "ins", tabla: "rutinas", fila: filaRutina(r) })));
   const creadas = nuevas;
