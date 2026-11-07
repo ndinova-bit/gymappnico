@@ -671,6 +671,10 @@ function renderHoy() {
       <div class="hoy-rutina">${esc(s.mejor.r.nombre)}</div>
       <div class="mut">${frescosR.length ? esc(frescosR.join(", ")) + " ya descansaron." : "Algunos músculos de esta rutina todavía se están recuperando."}</div>
       <div class="muscs">${GRUPOS_MUSC.map(chip).join("")}</div>
+      <div class="hoy-estado" role="group" aria-label="Cómo llegás hoy">
+        ${[["bien", "Con todo"], ["normal", "Normal"], ["cansado", "Cansado"]].map(([k, t]) => `<button class="chip ${estadoHoy === k ? "on" : ""}" data-e="${k}">${t}</button>`).join("")}
+      </div>
+      ${estadoHoy === "cansado" ? '<p class="mut">Hoy la planilla trae una serie menos por ejercicio.</p>' : ""}
       <div class="row" style="margin:12px 0 0"><button class="btn cy" id="hoy-empezar">Empezar esta rutina</button></div>`;
     $("hoy-empezar").onclick = () => { haptico(15); cargarRutina(s.mejor.r.id); };
   } else {
@@ -679,6 +683,14 @@ function renderHoy() {
       <div class="muscs">${GRUPOS_MUSC.map(chip).join("")}</div>`;
   }
 }
+
+$("hoy-cuerpo").addEventListener("click", e => {
+  const c = e.target.closest("[data-e]");
+  if (!c) return;
+  estadoHoy = c.dataset.e;
+  haptico(8);
+  renderHoy();
+});
 
 // ---------- Dibujo de la planilla ----------
 function reconciliar() {
@@ -718,13 +730,16 @@ function renderPlanilla() {
   reconciliar();
   const bl = borrador?.bloques || [];
   if (!bl.length) {
-    pl.innerHTML = `<p class="mut vacio">Elegí una rutina, tocá «Repetir última sesión» o agregá un ejercicio para armar la planilla.</p>`;
+    pintarPlanilla(`<p class="mut vacio">Elegí una rutina, tocá «Repetir última sesión» o agregá un ejercicio para armar la planilla.</p>`);
+    $("s-sticky").classList.add("hidden");
     return;
   }
+  $("s-sticky").classList.remove("hidden");
   const totF = bl.reduce((a, b) => a + b.filas.length, 0);
   const hechasT = bl.reduce((a, b) => a + b.filas.filter(f => f.hecho).length, 0);
-  const progreso = `<div class="pl-prog" aria-label="Progreso de la sesión"><span>${hechasT}/${totF} series</span><div class="barra"><div style="width:${totF ? Math.round(hechasT / totF * 100) : 0}%"></div></div></div>`;
-  pl.innerHTML = progreso + bl.map((b, i) => {
+  $("sb-series").textContent = `${hechasT}/${totF} series`;
+  $("sb-barra").style.width = (totF ? Math.round(hechasT / totF * 100) : 0) + "%";
+  const html = bl.map((b, i) => {
     const u = ultimaSesionDe(b.ej);
     const nota = notaDe(b.ej);
     let nTrab = 0;
@@ -753,6 +768,7 @@ function renderPlanilla() {
           <button class="bl-mov" data-acc="subir" aria-label="Subir ejercicio" ${i === 0 ? "disabled" : ""}>↑</button>
           <button class="bl-mov" data-acc="bajar" aria-label="Bajar ejercicio" ${i === bl.length - 1 ? "disabled" : ""}>↓</button>
         </div>
+        <div class="bl-musc">${esc(principalDe(b.ej, grupoDe(b.ej)) || grupoDe(b.ej))}</div>
         ${nota ? `<div class="bl-nota">📝 ${esc(nota)}</div>` : ""}
         ${b.meta ? `<div class="bl-meta">${esc(b.meta)}</div>` : ""}
         <div class="fila cab"><span>Serie</span><span>Antes</span><span>Kg</span><span>Reps</span><span>RPE</span><span></span></div>
@@ -763,10 +779,29 @@ function renderPlanilla() {
           <button class="chip chip-mas" data-acc="mas" aria-expanded="${masAbiertos.has(b.id)}">${masAbiertos.has(b.id) ? "Menos ▴" : "Más ▾"}</button>
           <button class="chip chip-sec" data-acc="ss">${b.ss ? "Separar" : "Superserie ↓"}</button>
           <button class="chip chip-sec" data-acc="nota">Nota</button>
+          <button class="chip chip-sec" data-acc="cambiar">Cambiar</button>
           <button class="chip peligro chip-sec" data-acc="quitar">Quitar</button>
         </div>
       </div>`;
   }).join("");
+  pintarPlanilla(html);
+}
+
+// Redibuja la planilla solo si cambió y devuelve el foco (y el cursor) al campo que se estaba escribiendo.
+let _htmlPlanilla = "";
+function pintarPlanilla(html) {
+  if (html === _htmlPlanilla && pl.children.length) return;
+  const a = document.activeElement;
+  let guardado = null;
+  if (a && pl.contains(a) && a.dataset?.campo) {
+    guardado = { b: a.closest("[data-b]")?.dataset.b, f: a.closest("[data-f]")?.dataset.f, c: a.dataset.campo, i: a.selectionStart, j: a.selectionEnd };
+  }
+  pl.innerHTML = html;
+  _htmlPlanilla = html;
+  if (guardado) {
+    const el = pl.querySelector(`[data-b="${guardado.b}"] [data-f="${guardado.f}"] input[data-campo="${guardado.c}"]`);
+    if (el) { el.focus(); try { el.setSelectionRange(guardado.i, guardado.j); } catch (e) {} }
+  }
 }
 
 function renderSesion() {
@@ -784,16 +819,17 @@ function renderSesion() {
   renderHoy();
   renderPlanilla();
   renderHistorial();
+  if (typeof renderDescarga === "function") renderDescarga();
 }
 
 function renderHistorial() {
-  const hist = db.sesiones.filter(s => s.id !== sesionActualId && s.series.length).slice(-10).reverse();
+  const hist = db.sesiones.filter(s => s.id !== sesionActualId && s.series.length).slice(-3).reverse();
   const marcaTxt = x => x.marca === "calentamiento" ? " <span class='tag'>C</span>" : x.marca === "descendente" ? " <span class='tag'>D</span>" : "";
-  $("s-historial").innerHTML = hist.length ? hist.map(s => {
+  pintarLista($("s-historial"), hist.length ? hist.map(s => {
     const ejs = [...new Set(s.series.map(x => x.ejercicio))].join(", ");
     const vol = trab(s).reduce((a, x) => a + x.reps * x.kg, 0);
     return `
-      <details class="hist">
+      <details class="hist" data-id="${s.id}">
         <summary><b>${s.fecha}</b><span class="mut">${esc(ejs)} · ${s.series.length} series · ${Math.round(vol).toLocaleString("es-AR")} kg${s.notas ? " · 📝 " + esc(s.notas.slice(0, 60)) : ""}</span></summary>
         <div class="cuerpo">
           <div class="row">
@@ -815,5 +851,55 @@ function renderHistorial() {
           </table>
         </div>
       </details>`;
-  }).join("") : '<p class="mut">Todavía no hay sesiones cerradas.</p>';
+  }).join("") : '<p class="mut">Todavía no hay sesiones cerradas.</p>');
 }
+
+// ---------- Pestaña Historial (todo, con búsqueda) ----------
+let histN = 15, histDias = 0;
+function renderHistorialTab() {
+  const q = sinTildes($("h-buscar").value.trim().toLowerCase());
+  const desde = histDias ? sumarDias(hoy(), -histDias) : "";
+  let lista = db.sesiones.filter(s => s.id !== sesionActualId && s.series.length && (!desde || s.fecha >= desde)).slice().reverse();
+  if (q) lista = lista.filter(s => sinTildes((s.fecha + " " + (s.notas || "") + " " + s.series.map(x => x.ejercicio).join(" ")).toLowerCase()).includes(q));
+  $("h-resumen").textContent = lista.length === 1 ? "1 sesión" : `${lista.length} sesiones`;
+  const ver = lista.slice(0, histN);
+  $("h-mas").classList.toggle("hidden", lista.length <= histN);
+  const marcaTxt = x => x.marca === "calentamiento" ? " <span class='tag'>C</span>" : x.marca === "descendente" ? " <span class='tag'>D</span>" : "";
+  pintarLista($("h-lista"), ver.length ? ver.map(s => {
+    const ejs = [...new Set(s.series.map(x => x.ejercicio))];
+    const vol = trab(s).reduce((a, x) => a + x.reps * x.kg, 0);
+    const porEj = ejs.map(ej => `
+      <tr class="h-ej"><td colspan="5"><b>${esc(ej)}</b></td></tr>
+      ${s.series.filter(x => x.ejercicio === ej).map(x => `
+      <tr>
+        <td></td><td>${x.reps}</td><td>${fmtKg(x.kg)}${marcaTxt(x)}</td><td>${x.rpe ?? "-"}</td>
+        <td style="white-space:nowrap">
+          <button class="btn sec mini" onclick="editarSerie('${s.id}','${x.id}')">Editar</button>
+          <button class="btn peligro mini" onclick="borrarSerie('${s.id}','${x.id}')" aria-label="Borrar serie">×</button>
+        </td>
+      </tr>`).join("")}`).join("");
+    return `
+      <details class="hist" data-id="${s.id}">
+        <summary><b>${s.fecha}</b><span class="mut">${esc(ejs.join(", "))} · ${s.series.length} series · ${Math.round(vol).toLocaleString("es-AR")} kg${s.notas ? " · 📝 " + esc(s.notas.slice(0, 60)) : ""}</span></summary>
+        <div class="cuerpo">
+          <div class="row">
+            <input type="date" value="${s.fecha}" style="max-width:170px" onchange="cambiarFecha('${s.id}', this.value)" aria-label="Fecha de la sesión">
+            <button class="btn cy mini fijo" onclick="repetirSesion('${s.id}')">Repetir</button>
+            <button class="btn sec mini fijo" onclick="editarNota('${s.id}')">Nota</button>
+            <button class="btn peligro mini fijo" onclick="borrarSesionConfirm('${s.id}')">Borrar</button>
+          </div>
+          <table><thead><tr><th></th><th>Reps</th><th>Kg</th><th>RPE</th><th></th></tr></thead><tbody>${porEj}</tbody></table>
+        </div>
+      </details>`;
+  }).join("") : '<p class="mut">No hay sesiones con ese filtro.</p>');
+}
+$("h-buscar").addEventListener("input", () => { histN = 15; renderHistorialTab(); });
+$("h-mas").onclick = () => { histN += 15; renderHistorialTab(); };
+$("h-rango").addEventListener("click", e => {
+  const c = e.target.closest("[data-d]");
+  if (!c) return;
+  histDias = +c.dataset.d; histN = 15;
+  $("h-rango").querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c));
+  renderHistorialTab();
+});
+$("s-ver-historial").onclick = () => irA("historial");

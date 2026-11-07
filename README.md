@@ -6,7 +6,7 @@ Funciona sin conexión y sincroniza con Supabase. Se publica con GitHub Pages.
 ## Archivos
 
 - `index.html` (estructura) y `styles.css` (estilos y temas).
-- Lógica, en este orden: `base.js`, `almacen.js` (IndexedDB), `sync.js`, `auth.js`, `descanso.js`,
+- Lógica, en este orden: `logica.js` (funciones puras, con tests), `base.js`, `almacen.js` (IndexedDB), `sync.js`, `auth.js`, `descanso.js`,
   `sesion.js` (planilla y resumen), `rutinas.js` (plan y programas), `progreso.js`, `datos.js`, `app.js`.
 - `sw.js`: caché sin conexión. Subí el número `CACHE` cada vez que cambie cualquier archivo.
 - `manifest.json` e íconos.
@@ -27,6 +27,16 @@ No se modifica ningún dato guardado: las series con un tipo elegido a mano se r
 
 Epley, sumando las repeticiones en reserva si la serie tiene RPE (10 − RPE, hasta 3). Sin RPE queda igual que antes.
 Cambia solo el cálculo que se muestra; los datos guardados no se tocan.
+
+## Cambios de la v29
+
+- Nueva pestaña Historial (búsqueda, rango, repetir una sesión) y barra fija en la sesión con el descanso a la vista.
+- Paneles propios en lugar de los cuadros del navegador; editar una serie permite tocar el RPE.
+- La app ya no se redibuja sola cada 30 s (no se pierde lo que escribís); baja datos al volver, al reconectar o cada 5 min.
+- Series por músculo (efectivas: principal 1, ayudantes 0,5), saltos de carga por ejercicio, aviso de posible descarga, "Cambiar ejercicio" y "cómo llegás hoy".
+- Las preferencias (meta, días, tema, etc.) se sincronizan con la cuenta si ejecutaste `migracion_v11.sql` (opcional).
+- Service worker: primero la red para los archivos de la app y aviso "Actualizar" en vez de recarga automática.
+- Tests: `node --test tests/*.test.js`. Ninguna migración borra ni modifica registros.
 
 ## Privacidad
 

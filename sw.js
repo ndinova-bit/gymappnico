@@ -1,10 +1,10 @@
 // Service worker: permite abrir la app sin conexión.
 // Subí el número de versión cada vez que cambies cualquier archivo, así los celulares descargan la nueva copia.
-const CACHE = "gymapp-v28";
+const CACHE = "gymapp-v29";
 
 const ESTATICOS = [
   "./", "./index.html", "./styles.css",
-  "./base.js", "./almacen.js", "./sync.js", "./auth.js", "./descanso.js",
+  "./logica.js", "./base.js", "./almacen.js", "./sync.js", "./auth.js", "./descanso.js",
   "./sesion.js", "./rutinas.js", "./progreso.js", "./datos.js", "./app.js",
   "./manifest.json", "./icon.svg", "./icon-192.png", "./icon-512.png"
 ];
@@ -16,14 +16,15 @@ const CDN = [
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    await cache.addAll(ESTATICOS);
+    await Promise.all(ESTATICOS.map(u => cache.add(new Request(u, { cache: "reload" }))));
     // Los CDN se piden en modo "no-cors": la respuesta es opaca, pero sirve para usar el script sin conexión.
     await Promise.all(CDN.map(url =>
       fetch(url, { mode: "no-cors" }).then(r => cache.put(url, r)).catch(() => {})
     ));
-    self.skipWaiting();
+    // No hay skipWaiting automático: la página avisa y, si la persona acepta, manda SKIP_WAITING.
   })());
 });
+self.addEventListener("message", e => { if (e.data === "SKIP_WAITING") self.skipWaiting(); });
 
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {
@@ -41,8 +42,19 @@ self.addEventListener("fetch", e => {
 
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
+    const propio = url.origin === self.location.origin;
+    if (propio) {
+      // Archivos de la app: primero la red (saltando la caché del navegador), así nunca se mezclan versiones; sin red, la copia guardada.
+      try {
+        const r = await fetch(e.request, { cache: "no-cache" });
+        if (r && r.ok) cache.put(e.request, r.clone());
+        return r;
+      } catch (err) {
+        return (await cache.match(e.request, { ignoreSearch: true })) || new Response("Sin conexión", { status: 503 });
+      }
+    }
+    // Librerías externas (CDN): copia guardada y, en segundo plano, se refresca.
     const guardada = await cache.match(e.request, { ignoreSearch: true });
-    // Muestra la copia guardada y, en segundo plano, actualiza la cache si hay red.
     const red = fetch(e.request)
       .then(r => { if (r && (r.ok || r.type === "opaque")) cache.put(e.request, r.clone()); return r; })
       .catch(() => null);

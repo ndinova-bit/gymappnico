@@ -292,14 +292,14 @@ function recomendaciones() {
       consejo = "Esta carga te exige al límite. Mantenela y buscá una repetición más antes de subir.";
     } else if ((rpeProm !== null && rpeProm <= 7.5 && repsMin >= 8) || (rpeProm === null && repsMin >= 10)) {
       tipo = "sube";
-      consejo = kgMax > 0 ? `Subí a ${fmt(kgMax + 2.5)} kg la próxima vez.` : "Sumá peso o una serie: con peso corporal la sobrecarga viene por repeticiones.";
+      consejo = kgMax > 0 ? `Subí a ${fmt(kgMax + incrementoDe(ej))} kg la próxima vez.` : "Sumá peso o una serie: con peso corporal la sobrecarga viene por repeticiones.";
     } else {
       tipo = "reps";
       consejo = "Sumá una repetición por serie hasta llegar al rango alto y recién después subí la carga.";
     }
     if (descProm !== null && repsMin < 6 && descProm < 120) consejo += " Para cargas altas conviene descansar 2 a 3 minutos.";
     const objetivo = {
-      sube: kgMax > 0 ? `${fmt(kgMax + 2.5)} kg × ${repsMin} reps` : `${repsMin + 1} reps`,
+      sube: kgMax > 0 ? `${fmt(kgMax + incrementoDe(ej))} kg × ${repsMin} reps` : `${repsMin + 1} reps`,
       reps: `${kgMax} kg · ${repsMin + 1} reps mínimas`,
       mantener: `${kgMax} kg · mismas reps`,
       baja: `${fmt(kgMax * 0.95)} kg`,
@@ -321,7 +321,7 @@ function recHipertrofia(ej, ses) {
   const rpeProm = promedio(xs.map(x => x.rpe).filter(v => v != null));
   const tope = repsMin >= 13 ? 15 : 12;
   if (repsMin >= tope && kgMax > 0) {
-    return { ej, tipo: "sube", consejo: `Llegaste a ${tope} repeticiones en todas las series: subí la carga y volvé a empezar desde el rango bajo.`, objetivo: `${fmt(kgMax + 2.5)} kg × ${Math.max(6, tope - 4)} reps` };
+    return { ej, tipo: "sube", consejo: `Llegaste a ${tope} repeticiones en todas las series: subí la carga y volvé a empezar desde el rango bajo.`, objetivo: `${fmt(kgMax + incrementoDe(ej))} kg × ${Math.max(6, tope - 4)} reps` };
   }
   if (rpeProm !== null && rpeProm <= 6.5) {
     return { ej, tipo: "reps", consejo: "Estás lejos del fallo. Para crecer conviene terminar las series a 1 o 2 repeticiones del límite (RPE 8 a 9): sumá repeticiones antes de subir el peso.", objetivo: `${fmt(kgMax)} kg · ${repsMin + 2} reps, RPE 8-9` };
@@ -337,7 +337,7 @@ function recResistencia(ej, ses) {
   if (!hist.length) return null;
   const xs = trab(hist[hist.length - 1]).filter(x => x.ejercicio === ej && tipoDe(x) === "resistencia");
   const kgMax = Math.max(...xs.map(x => x.kg));
-  return { ej, tipo: "reps", consejo: "Son series de muchas repeticiones sin llegar al fallo: entrenan resistencia muscular. Si buscás más músculo, subí un poco la carga (8 a 15 repeticiones) o llevá la serie hasta RPE 8 o más.", objetivo: kgMax > 0 ? `${fmt(kgMax + 2.5)} kg · 8-15 reps` : "8-15 reps, RPE 8+" };
+  return { ej, tipo: "reps", consejo: "Son series de muchas repeticiones sin llegar al fallo: entrenan resistencia muscular. Si buscás más músculo, subí un poco la carga (8 a 15 repeticiones) o llevá la serie hasta RPE 8 o más.", objetivo: kgMax > 0 ? `${fmt(kgMax + incrementoDe(ej))} kg · 8-15 reps` : "8-15 reps, RPE 8+" };
 }
 function recomendacionesTodas() {
   const ses = sesionesConSeries();
@@ -513,29 +513,48 @@ function renderMapa() {
 
 // ---------- Series por músculo (últimos 7 días) ----------
 // Rango orientativo de 10 a 20 series efectivas por semana para cada grupo.
-const RANGO_SERIES = [10, 20];
 function renderVolGrupos() {
-  const corte = sumarDias(hoy(), -6);
-  const n = {};
-  GRUPOS_MUSC.forEach(g => n[g] = 0);
-  sesionesConSeries().forEach(s => {
-    if (s.fecha < corte) return;
-    trab(s).forEach(x => { const g = grupoDe(x.ejercicio); if (g in n) n[g]++; });
-  });
+  const desde = sumarDias(hoy(), -6);
+  const cat = Object.fromEntries((db.ejercicios || []).map(e => [e.nombre, e.grupo]));
+  const por = seriesPorMusculo(sesionesConSeries(), desde, nom => musculosDe(nom, cat[nom]));
   const tope = 26;
-  $("vg-lista").innerHTML = GRUPOS_MUSC.map(g => {
-    const v = n[g];
-    const estado = v < RANGO_SERIES[0] ? ["bajo", "Poco"] : v <= RANGO_SERIES[1] ? ["ok", "En rango"] : ["alto", "Mucho"];
+  $("vg-lista").innerHTML = MUSCULOS.map(m => {
+    const { efectivas, dias } = por[m];
+    const [lo, hi] = rangoDe(m);
+    const v = Math.round(efectivas * 2) / 2;
+    const estado = v < lo ? ["bajo", "Poco"] : v <= hi ? ["ok", "En rango"] : ["alto", "Mucho"];
     return `
       <div class="vg">
-        <div class="vg-cab"><b>${esc(g)}</b><span class="vg-est ${estado[0]}">${estado[1]}</span><span class="mut vg-n">${v} series</span></div>
-        <div class="vg-barra" role="img" aria-label="${esc(g)}: ${v} series, ${estado[1]}">
-          <div class="vg-zona" style="left:${RANGO_SERIES[0] / tope * 100}%;width:${(RANGO_SERIES[1] - RANGO_SERIES[0]) / tope * 100}%"></div>
+        <div class="vg-cab"><b>${esc(m)}</b><span class="vg-est ${estado[0]}">${estado[1]}</span><span class="mut vg-n">${fmt(v)} series · ${dias} ${dias === 1 ? "día" : "días"}</span></div>
+        <div class="vg-barra" role="img" aria-label="${esc(m)}: ${fmt(v)} series efectivas, ${estado[1]}">
+          <div class="vg-zona" style="left:${lo / tope * 100}%;width:${(hi - lo) / tope * 100}%"></div>
           <div class="vg-val ${estado[0]}" style="width:${Math.min(100, v / tope * 100)}%"></div>
         </div>
       </div>`;
   }).join("");
 }
+
+// Aviso de descarga: una sugerencia (no una orden) cuando las señales de fatiga se juntan.
+function renderDescarga() {
+  const cajas = document.querySelectorAll(".dc-aviso");
+  const enDescargaPrograma = db.rutinas.some(r => r.esquema?.ciclo && semanaPrograma(r.esquema) === r.esquema.ciclo);
+  const s = senalesDescarga(sesionesConSeries(), hoy());
+  const oculto = (ajustes.dcHasta && ajustes.dcHasta >= hoy()) || enDescargaPrograma || !s.recomendar;
+  cajas.forEach(c => {
+    c.classList.toggle("hidden", oculto);
+    if (oculto) return;
+    c.innerHTML = `<b>Tal vez te toque una semana de descarga</b>
+      <ul>${s.motivos.map(m => `<li>${esc(m)}</li>`).join("")}</ul>
+      <p class="mut">Una semana con menos series y 10 % menos de peso suele ayudar a rendir mejor después. Es una sugerencia, vos decidís.</p>
+      <button class="chip" data-dc="no">Ahora no</button>`;
+  });
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest("[data-dc]")) return;
+  ajustes.dcHasta = sumarDias(hoy(), 7);
+  guardarTodo();
+  renderDescarga();
+});
 
 // ---------- Calendario anual ----------
 function renderCalendario() {
@@ -574,6 +593,7 @@ $("cal-grilla").onclick = e => {
   if (!c) return;
   const ses = sesionesConSeries().filter(s => s.fecha === c.dataset.f);
   if (!ses.length) return toast(`${c.dataset.f}: sin entrenamiento`);
+  if ($("h-buscar")) { $("h-buscar").value = c.dataset.f; histN = 15; irA("historial"); renderHistorialTab(); return; }
   const ejs = [...new Set(ses.flatMap(s => s.series.map(x => x.ejercicio)))];
   toast(`${c.dataset.f}: ${ejs.slice(0, 3).join(", ")}${ejs.length > 3 ? "…" : ""}`);
 };
@@ -589,6 +609,7 @@ function renderProgreso() {
   renderPlan();
   renderMapa();
   renderVolGrupos();
+  renderDescarga();
   renderCalendario();
   revisarHitos(p);
 }

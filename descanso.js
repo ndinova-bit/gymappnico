@@ -208,3 +208,27 @@ document.querySelectorAll("#modo-ajuste button").forEach(b => b.onclick = () => 
 // Tocar cualquiera de los relojes de la tarjeta vuelve a abrir el panel.
 $("rs-cron").parentElement.onclick = () => abrirModo("cron");
 $("tm-cron").parentElement.onclick = () => abrirModo("tm");
+
+// ---------- Descanso en la barra fija de la sesión ----------
+// Muestra el tiempo que queda (o el que va corriendo) sin tener que abrir la pantalla completa.
+function pintarMini() {
+  const b = $("sb-desc");
+  if (!b) return;
+  b.classList.remove("alerta", "urgente", "fin", "on");
+  if (tmId && tmFin) {
+    const resta = Math.max(0, Math.ceil((tmFin - Date.now()) / 1000));
+    b.textContent = fmtTiempo(resta);
+    b.classList.add("on");
+    if (resta <= 10) b.classList.add("urgente"); else if (resta <= 30) b.classList.add("alerta");
+  } else if (rsId && rsInicio) {
+    b.textContent = fmtTiempo(Math.floor((Date.now() - rsInicio) / 1000));
+    b.classList.add("on");
+  } else if (tmFin && Date.now() >= tmFin && tmTotal) {
+    b.textContent = "¡Dale!";
+    b.classList.add("fin");
+  } else {
+    b.textContent = "Descanso";
+  }
+}
+setInterval(pintarMini, 500);
+$("sb-desc").onclick = () => abrirModo(tmId || (tmFin && !rsId) ? "tm" : "cron");

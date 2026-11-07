@@ -149,5 +149,6 @@ function irA(tab) {
   if (tab === "progreso") renderProgreso();
   if (tab === "peso") renderPeso();
   if (tab === "datos") renderAdmin();
+  if (tab === "historial") renderHistorialTab();
 }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { haptico(8); irA(b.dataset.tab); });
