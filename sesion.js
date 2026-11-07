@@ -7,6 +7,17 @@
 // Las filas tildadas ya son series guardadas (serieId); las demás son el plan.
 let borrador = null;
 const MARCAS = ["normal", "calentamiento", "descendente"];
+// Cómo llegás hoy ("bien", "normal" o "cansado"). Si llegás cansado, la planilla trae una serie menos por ejercicio.
+let estadoHoy = "normal";
+// Qué se dibujó la última vez en cada lista: si no cambió, no se vuelve a dibujar (así no se pierde el foco ni lo desplegado).
+const _ultimoHTML = {};
+function pintarLista(el, html) {
+  if (_ultimoHTML[el.id] === html) return;
+  const abiertos = new Set([...el.querySelectorAll("details[open]")].map(d => d.dataset.id));
+  el.innerHTML = html;
+  _ultimoHTML[el.id] = html;
+  el.querySelectorAll("details[data-id]").forEach(d => { if (abiertos.has(d.dataset.id)) d.open = true; });
+}
 
 function guardarBorrador() {
   try {
@@ -84,21 +95,15 @@ function planDeEjercicio(ej, e, esq) {
       meta: `5/3/1 · semana ${sem} de 4${sem === 4 ? " (descarga)" : ""} · máximo de entrenamiento ${fmtKg(r25(tm))} kg${sem < 4 ? " · la última serie, todas las reps que puedas" : ""}`
     };
   }
-  const n = descarga ? Math.max(1, Math.ceil(e.s * 0.6)) : e.s;
+  const nPlan = descarga ? Math.max(1, Math.ceil(e.s * 0.6)) : e.s;
+  const n = ajustarSeries(nPlan, estadoHoy);
   const u = ultimaSesionDe(ej);
   let kg = "", reps = e.rmin, subio = false;
-  if (u) {
-    const kgTop = Math.max(...u.xs.map(x => x.kg));
-    const deTop = u.xs.filter(x => x.kg === kgTop);
-    subio = kgTop > 0 && deTop.every(x => x.reps >= e.rmax);
-    kg = subio ? kgTop + 2.5 : kgTop;
-    reps = subio ? e.rmin : Math.min(e.rmax, Math.max(e.rmin, Math.min(...deTop.map(x => x.reps)) + 1));
-    if (descarga && kg > 0) { kg = r25(kg * 0.9); subio = false; }
-  }
+  if (u) ({ kg, reps, subio } = progresarDoble({ xs: u.xs, rmin: e.rmin, rmax: e.rmax, inc: incrementoDe(ej), descarga }));
   const semTxt = descarga ? "Semana de descarga: menos series y 10 % menos de peso · " : esq.ciclo ? `Semana ${sem} de ${esq.ciclo} · ` : "";
   return {
     filas: Array.from({ length: n }, () => ({ kg, reps, etq: "" })),
-    meta: `${semTxt}Objetivo ${n} × ${e.rmin}${e.rmax !== e.rmin ? "-" + e.rmax : ""} reps${subio ? " · ¡llegaste arriba, subí la carga!" : ""}`
+    meta: `${semTxt}Objetivo ${n} × ${e.rmin}${e.rmax !== e.rmin ? "-" + e.rmax : ""} reps${subio ? " · ¡llegaste arriba, subí la carga!" : ""}${n < nPlan ? " · llegás cansado: una serie menos" : ""}`
   };
 }
 
@@ -111,10 +116,11 @@ function filaDeSerie(x) {
   return { id: uid(), serieId: x.id, kg: String(x.kg), reps: String(x.reps), rpe: x.rpe == null ? "" : String(x.rpe),
     marca: x.marca || "normal", hecho: true, okg: "", oreps: "", etq: "" };
 }
-function nuevoBloque(ej, desde = null) {
+function nuevoBloque(ej, desde = null, esqDe = null) {
   const b = { id: uid(), ej, ss: null, desc: null, meta: "", filas: [] };
   const rut = db.rutinas.find(r => r.id === borrador?.rutinaId);
-  const e = rut?.esquema?.ej?.[ej];
+  // esqDe: al cambiar un ejercicio por otro, hereda las series y repeticiones del que reemplaza.
+  const e = rut?.esquema?.ej?.[ej] || (rut?.esquema && esqDe ? { ...esqDe, w531: false } : null);
   if (desde) {
     // Repetir una sesión: copia sus series como plan.
     desde.forEach(x => b.filas.push(filaNueva(x.kg, x.reps, x.marca || "normal")));
@@ -125,8 +131,8 @@ function nuevoBloque(ej, desde = null) {
     p.filas.forEach(f => b.filas.push(filaNueva(f.kg, f.reps, "normal", f.etq)));
   } else {
     const u = ultimaSesionDe(ej);
-    if (u) u.xs.forEach(x => b.filas.push(filaNueva(x.kg, x.reps, x.marca === "descendente" ? "descendente" : "normal")));
-    else for (let i = 0; i < 3; i++) b.filas.push(filaNueva("", 10));
+    if (u) u.xs.slice(0, ajustarSeries(u.xs.length, estadoHoy)).forEach(x => b.filas.push(filaNueva(x.kg, x.reps, x.marca === "descendente" ? "descendente" : "normal")));
+    else for (let i = 0; i < ajustarSeries(3, estadoHoy); i++) b.filas.push(filaNueva("", 10));
   }
   return b;
 }
@@ -150,7 +156,7 @@ $("s-rutina").onchange = () => { if ($("s-rutina").value) cargarRutina($("s-ruti
 
 $("s-agregar-ej").onclick = () => {
   const ej = $("s-ej").value.trim();
-  if (!ej) return alert("Escribí o elegí un ejercicio.");
+  if (!ej) return avisar("Escribí o elegí un ejercicio.");
   const bor = asegurarBorrador();
   bor.bloques.push(nuevoBloque(ej));
   $("s-ej").value = "";
@@ -181,7 +187,7 @@ function valorFila(f) {
 
 function marcarHecha(b, f) {
   const v = valorFila(f);
-  if (v.error) return alert(v.error);
+  if (v.error) return avisar(v.error);
   prepararAudio();
   confirmarPendiente();
   const ses = asegurarSesion();
@@ -291,7 +297,7 @@ function actualizarHecha(b, f) {
   const s = ses?.series.find(x => x.id === f.serieId);
   if (!s) return;
   const v = valorFila(f);
-  if (v.error) { alert(v.error); renderSesion(); return; }
+  if (v.error) { avisar(v.error); renderSesion(); return; }
   Object.assign(s, { kg: v.kg, reps: v.reps, rpe: v.rpe, tipo_serie: clasificarSerie({ reps: v.reps, kg: v.kg, rpe: v.rpe, ejercicio: s.ejercicio }) });
   encolar({ t: "upd", tabla: "series", id: s.id, cambios: { kg: s.kg, reps: s.reps, rpe: s.rpe, tipo_serie: s.tipo_serie } });
 }
@@ -322,6 +328,12 @@ pl.addEventListener("click", e => {
   const f = btn.closest("[data-f]") ? b.filas.find(x => x.id === btn.closest("[data-f]").dataset.f) : null;
   const acc = btn.dataset.acc;
   if (acc === "ok" && f) { if (f.hecho) desmarcar(b, f); else marcarHecha(b, f); return; }
+  if (acc === "rpe" && f) {
+    f.rpe = siguienteRPE(f.rpe);
+    haptico(8);
+    if (f.hecho) actualizarHecha(b, f);
+  }
+  if (acc === "cambiar") return cambiarEjercicio(b);
   if (acc === "marca" && f) {
     f.marca = MARCAS[(MARCAS.indexOf(f.marca) + 1) % MARCAS.length];
     haptico(8);
@@ -337,7 +349,7 @@ pl.addEventListener("click", e => {
   }
   if (acc === "cal") {
     const ref = Math.max(0, ...b.filas.filter(x => x.marca !== "calentamiento").map(x => num(x.kg || x.okg) || 0), mejorKgPrevio(b.ej) * 0.8);
-    if (!ref) return alert("Primero poné el peso de trabajo para calcular el calentamiento.");
+    if (!ref) return avisar("Primero poné el peso de trabajo para calcular el calentamiento.");
     b.filas.unshift(filaNueva(r25(ref * 0.5), 8, "calentamiento"), filaNueva(r25(ref * 0.7), 5, "calentamiento"), filaNueva(r25(ref * 0.85), 3, "calentamiento"));
     toast("Calentamiento: 50 %, 70 % y 85 % del peso de trabajo");
   }
@@ -353,6 +365,33 @@ pl.addEventListener("click", e => {
   guardarBorrador();
   renderSesion();
 });
+
+// RPE de un toque: vacío → 8 → 9 → 10 → 7 → 6 → vacío (lo más común primero).
+const CICLO_RPE = ["", "8", "9", "10", "7", "6"];
+function siguienteRPE(v) {
+  const i = CICLO_RPE.indexOf(String(v ?? ""));
+  return i < 0 ? "8" : CICLO_RPE[(i + 1) % CICLO_RPE.length];
+}
+
+// Cambiar un ejercicio por otro que trabaje el mismo músculo (máquina ocupada, molestia, variar).
+async function cambiarEjercicio(b) {
+  if (b.filas.some(f => f.hecho)) return avisar("Ya tildaste series de este ejercicio. Para cambiarlo, desmarcalas primero o agregá el otro ejercicio más abajo.");
+  const alts = sustitutos(b.ej, catalogo(), 10);
+  if (!alts.length) return avisar("No encontré otros ejercicios del mismo músculo en tu catálogo. Podés agregar uno en Rutinas → Nuevo ejercicio.");
+  const nuevo = await elegirOpcion({
+    titulo: `Cambiar ${b.ej}`, texto: "Estos ejercicios trabajan el mismo músculo principal.",
+    opciones: alts.map(n => { const u = ultimaSesionDe(n); return { valor: n, texto: n, detalle: u ? `Última vez: ${fmtKg(Math.max(...u.xs.map(x => x.kg)))} kg · ${u.fecha}` : "Todavía no lo hiciste" }; })
+  });
+  if (!nuevo) return;
+  if (borrador.bloques.some(x => x !== b && x.ej === nuevo)) return avisar("Ese ejercicio ya está en la planilla.");
+  const rut = db.rutinas.find(r => r.id === borrador?.rutinaId);
+  const nb = nuevoBloque(nuevo, null, rut?.esquema?.ej?.[b.ej] || null);
+  nb.ss = b.ss;
+  borrador.bloques[borrador.bloques.indexOf(b)] = nb;
+  guardarBorrador();
+  renderSesion();
+  toast(`${nuevo} en lugar de ${b.ej}`);
+}
 
 function alternarSuperserie(b) {
   const arr = borrador.bloques, i = arr.indexOf(b);
@@ -388,10 +427,11 @@ function quitarBloque(b) {
 
 // ---------- Notas fijas por ejercicio ----------
 const notaDe = ej => (db.notas || []).find(n => n.ejercicio === ej)?.nota || "";
-function editarNotaEjercicio(ej) {
-  const n = prompt(`Nota fija para ${ej} (ej.: asiento en 4, agarre cerrado). Aparece cada vez que lo hacés.`, notaDe(ej));
-  if (n === null) return;
-  const texto = n.trim().slice(0, 200);
+async function editarNotaEjercicio(ej) {
+  const r = await pedirDatos({ titulo: `Nota fija · ${ej}`, texto: "Aparece cada vez que hacés este ejercicio (por ejemplo: asiento en 4, agarre cerrado).",
+    campos: [{ id: "n", label: "Nota", tipo: "area", valor: notaDe(ej), max: 200 }] });
+  if (!r) return;
+  const texto = r.n.trim().slice(0, 200);
   let fila = db.notas.find(x => x.ejercicio === ej);
   if (!fila) { fila = { id: uid(), ejercicio: ej, nota: texto }; db.notas.push(fila); }
   fila.nota = texto;
@@ -400,10 +440,13 @@ function editarNotaEjercicio(ej) {
 }
 
 // ---------- Repetir y terminar ----------
-$("s-repetir").onclick = () => {
+$("s-repetir").onclick = () => repetirSesion();
+// Carga en la planilla los ejercicios de una sesión anterior (la última, si no se indica cuál).
+function repetirSesion(id) {
   const previas = sesionesConSeries().filter(s => s.id !== sesionActualId).sort((a, b) => b.fecha.localeCompare(a.fecha));
-  if (!previas.length) return alert("No hay una sesión anterior para repetir.");
-  const origen = previas[0];
+  if (!previas.length) return avisar("No hay una sesión anterior para repetir.");
+  const origen = id ? previas.find(s => s.id === id) : previas[0];
+  if (!origen) return;
   const bor = asegurarBorrador();
   const porEj = {};
   origen.series.forEach(x => (porEj[x.ejercicio] = porEj[x.ejercicio] || []).push(x));
@@ -416,7 +459,8 @@ $("s-repetir").onclick = () => {
   guardarBorrador();
   renderSesion();
   toast(`Cargada la sesión del ${origen.fecha}: tildá cada serie al hacerla`);
-};
+  if (id) irA("sesion");
+}
 
 function quitarSesion(id) {
   db.sesiones = db.sesiones.filter(s => s.id !== id);
@@ -435,6 +479,7 @@ $("s-cerrar").onclick = () => {
   const conSeries = ses && ses.series.length ? ses : null;
   sesionActualId = null;
   borrador = null;
+  estadoHoy = "normal";
   guardarBorrador();
   $("s-rutina").value = "";
   $("s-fecha").value = hoy();
@@ -504,21 +549,29 @@ function borrarSerie(sesId, serieId) {
     () => encolar({ t: "del", tabla: "series", id: serieId }),
     () => { ses.series.push(serie); ses.series.sort((a, b) => a.created_at.localeCompare(b.created_at)); });
 }
-function editarSerie(sesId, serieId) {
+async function editarSerie(sesId, serieId) {
   const ses = db.sesiones.find(s => s.id === sesId);
   const s = ses?.series.find(x => x.id === serieId);
   if (!s) return;
-  const kgNuevo = prompt("Kilos", s.kg);
-  if (kgNuevo === null) return;
-  const repsNuevas = prompt("Repeticiones", s.reps);
-  if (repsNuevas === null) return;
-  const tipoNuevo = prompt("Tipo: fuerza, hipertrofia o resistencia", tipoDe(s));
-  if (tipoNuevo === null) return;
-  s.kg = num(kgNuevo) || 0;
-  s.reps = parseInt(repsNuevas) || s.reps;
-  const t = tipoNuevo.trim().toLowerCase();
-  s.tipo_serie = TIPOS.includes(t) ? t : tipoDe(s);
-  encolar({ t: "upd", tabla: "series", id: serieId, cambios: { kg: s.kg, reps: s.reps, tipo_serie: s.tipo_serie } });
+  const r = await pedirDatos({
+    titulo: `Editar serie · ${s.ejercicio}`,
+    campos: [
+      { id: "kg", label: "Kilos", tipo: "numero", valor: String(s.kg).replace(".", ",") },
+      { id: "reps", label: "Repeticiones", tipo: "numero", valor: s.reps },
+      { id: "rpe", label: "RPE (esfuerzo)", tipo: "chips", opciones: ["6", "7", "8", "9", "10"], valor: s.rpe == null ? "" : String(s.rpe), ayuda: "Tocá el elegido otra vez para quitarlo." },
+      { id: "tipo", label: "Tipo de serie", tipo: "lista", valor: tipoDe(s),
+        opciones: [["fuerza", "Fuerza"], ["hipertrofia", "Hipertrofia"], ["resistencia", "Resistencia"], ["auto", "Recalcular automáticamente"]] },
+      { id: "marca", label: "Marca", tipo: "lista", valor: s.marca || "normal",
+        opciones: [["normal", "Normal"], ["calentamiento", "Calentamiento"], ["descendente", "Descendente"]] }
+    ]
+  });
+  if (!r) return;
+  const kg = r.kg.trim() === "" ? 0 : num(r.kg), reps = parseInt(r.reps), rpe = r.rpe === "" ? null : num(r.rpe);
+  if (isNaN(kg) || kg < 0 || kg > 1000) return avisar("Los kilos tienen que estar entre 0 y 1000.");
+  if (!reps || reps < 1 || reps > 100) return avisar("Poné las repeticiones (entre 1 y 100).");
+  Object.assign(s, { kg, reps, rpe, marca: r.marca });
+  s.tipo_serie = r.tipo === "auto" ? clasificarSerie({ reps, kg, rpe, ejercicio: s.ejercicio }) : r.tipo;
+  encolar({ t: "upd", tabla: "series", id: serieId, cambios: { kg: s.kg, reps: s.reps, rpe: s.rpe, tipo_serie: s.tipo_serie, marca: s.marca } });
 }
 function cambiarFecha(sesId, fecha) {
   const ses = db.sesiones.find(s => s.id === sesId);
@@ -533,12 +586,12 @@ $("s-nota").onchange = () => {
   ses.notas = $("s-nota").value.trim();
   encolar({ t: "upd", tabla: "sesiones", id: ses.id, cambios: { notas: ses.notas || null } });
 };
-function editarNota(sesId) {
+async function editarNota(sesId) {
   const ses = db.sesiones.find(s => s.id === sesId);
   if (!ses) return;
-  const n = prompt("Nota de la sesión (cómo te sentiste, sueño, molestias)", ses.notas || "");
-  if (n === null) return;
-  ses.notas = n.trim();
+  const r = await pedirDatos({ titulo: `Nota · ${ses.fecha}`, campos: [{ id: "n", label: "Cómo te sentiste, sueño, molestias", tipo: "area", valor: ses.notas || "" }] });
+  if (!r) return;
+  ses.notas = r.n.trim();
   encolar({ t: "upd", tabla: "sesiones", id: sesId, cambios: { notas: ses.notas || null } });
 }
 function borrarSesionConfirm(id) {

@@ -39,7 +39,7 @@ $("nueva-guardar").onclick = async () => {
 };
 $("salir").onclick = async () => {
   confirmarPendiente();
-  if (cola.length && !confirm(`Hay ${cola.length} cambio(s) sin subir. Si salís, se pierden. ¿Continuar?`)) return;
+  if (cola.length && !await confirmar(`Hay ${cola.length} cambio(s) sin subir. Si salís, se pierden.`, { titulo: "¿Salir igual?", ok: "Salir", peligro: true })) return;
   cola = []; db = DB_VACIA(); sesionActualId = null; borrador = null;
   localStorage.removeItem(K_BORRADOR);
   localStorage.removeItem(K_CUENTA);

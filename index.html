@@ -87,11 +87,19 @@
       <div id="hoy-cuerpo"></div>
     </div>
 
+    <div class="card aviso-dc dc-aviso hidden"></div>
+
     <div class="card">
       <h2>Entrenamiento <small id="s-estado-sesion">sin sesión</small></h2>
       <div class="grid">
         <input type="date" id="s-fecha" aria-label="Fecha de la sesión">
         <select id="s-rutina" aria-label="Cargar una rutina"></select>
+      </div>
+      <!-- Barra fija: progreso de la sesión y descanso. Se actualiza sin redibujar la planilla. -->
+      <div id="s-sticky" class="s-sticky hidden">
+        <span id="sb-series">0/0 series</span>
+        <div class="barra"><div id="sb-barra" style="width:0%"></div></div>
+        <button id="sb-desc" class="sb-desc" aria-label="Abrir el descanso">Descanso</button>
       </div>
       <div id="planilla" class="planilla" aria-live="polite"></div>
       <div class="agregar-ej">
@@ -108,8 +116,9 @@
       <p class="mut ayuda">Tocá ✓ al terminar cada serie: se guarda (aunque no tengas conexión) y arranca el descanso. Tocá el número de la serie para marcarla como calentamiento (C) o descendente (D).</p>
     </div>
 
-    <div class="card">
-      <h2>Descanso <small id="rs-info">entre series</small></h2>
+    <!-- El descanso arranca solo al tildar una serie. Esta tarjeta es para usarlo a mano: va plegada. -->
+    <details class="card desc-det" id="desc-manual">
+      <summary><h2>Descanso a mano <small id="rs-info">entre series</small></h2></summary>
       <div class="cronos">
         <button class="reloj-box" aria-label="Abrir cronómetro"><small>Cronómetro</small><div class="reloj" id="rs-cron">0:00</div></button>
         <button class="reloj-box" aria-label="Abrir temporizador"><small>Temporizador</small><div class="reloj" id="tm-cron">--:--</div></button>
@@ -125,11 +134,28 @@
         <button class="btn peligro fijo" id="tm-cancelar">Cancelar</button>
       </div>
       <p class="mut" id="tm-estado">Elegí los segundos y tocá Iniciar. Suena y vibra al terminar.</p>
-    </div>
+    </details>
 
     <div class="card">
-      <h2>Historial <small>últimas 10 sesiones</small></h2>
+      <h2>Últimas sesiones <small>las 3 más recientes</small></h2>
       <div id="s-historial"></div>
+      <button class="btn sec" id="s-ver-historial" style="width:100%;margin-top:10px">Ver todo el historial</button>
+    </div>
+  </section>
+
+  <!-- HISTORIAL -->
+  <section id="vista-historial" class="hidden">
+    <div class="card">
+      <h2>Historial <small id="h-resumen"></small></h2>
+      <input type="search" id="h-buscar" placeholder="Buscar por ejercicio, fecha o nota…" aria-label="Buscar en el historial" autocomplete="off">
+      <div class="chips" id="h-rango" style="margin-top:10px">
+        <button class="chip on" data-d="0">Todo</button>
+        <button class="chip" data-d="30">30 días</button>
+        <button class="chip" data-d="90">3 meses</button>
+        <button class="chip" data-d="365">1 año</button>
+      </div>
+      <div id="h-lista"></div>
+      <button class="btn sec hidden" id="h-mas" style="width:100%;margin-top:10px">Ver más sesiones</button>
     </div>
   </section>
 
@@ -193,6 +219,8 @@
 
   <!-- PROGRESO -->
   <section id="vista-progreso" class="hidden">
+    <div class="card aviso-dc dc-aviso hidden"></div>
+
     <div class="card">
       <h2>Rachas <small>según tus días de entrenamiento</small></h2>
       <div class="rachas" id="rachas"></div>
@@ -236,7 +264,7 @@
     <div class="card">
       <h2>Series por músculo <small>últimos 7 días · rango orientativo 10 a 20</small></h2>
       <div id="vg-lista"></div>
-      <p class="mut">Cuenta las series de trabajo (sin calentamientos). Es una referencia general; no reemplaza a tu profesor.</p>
+      <p class="mut">Series efectivas: las del músculo principal cuentan entera y las de los músculos que ayudan cuentan la mitad (por ejemplo, el press de banca suma media serie de hombro y de tríceps). No incluye calentamientos. Al lado va cuántos días lo entrenaste: lo ideal es 2 por semana. Es una referencia general; no reemplaza a tu profesor.</p>
     </div>
 
     <div class="card">
@@ -319,7 +347,7 @@
     </div>
 
     <div class="card">
-      <h2>Meta <small>se guarda solo en este celular</small></h2>
+      <h2>Meta <small>se sincroniza con tu cuenta</small></h2>
       <div class="row">
         <input type="text" id="meta-kg" placeholder="Peso objetivo (kg)" inputmode="decimal" aria-label="Peso objetivo">
         <button class="btn sec fijo" id="meta-guardar">Guardar meta</button>
@@ -335,6 +363,10 @@
 
   <!-- DATOS -->
   <section id="vista-datos" class="hidden">
+    <div class="card hidden aviso-mig" id="aviso-v11">
+      <h2>Falta un paso para guardar tus preferencias en la nube</h2>
+      <p class="mut">Ejecutá <b>migracion_v11.sql</b> en Supabase → SQL Editor. Mientras tanto, la meta de peso, el tema y los demás ajustes quedan solo en este celular.</p>
+    </div>
     <div class="card hidden aviso-mig" id="aviso-migracion">
       <h2>Falta un paso en la base</h2>
       <p class="mut">Para guardar calentamientos, superseries, programas y notas por ejercicio hay que ejecutar <b>migracion_v10.sql</b> en Supabase → SQL Editor. Mientras tanto, la app funciona igual pero sin esas marcas.</p>
@@ -395,6 +427,7 @@
       <div class="row">
         <button class="btn cy" id="d-csv">Exportar CSV</button>
         <button class="btn sec" id="d-exportar">Exportar JSON</button>
+        <button class="btn sec" id="d-sync">Sincronizar ahora</button>
       </div>
     </div>
     <div class="card">
@@ -412,14 +445,28 @@
 </main>
 
 <nav class="tabs hidden" id="tabs" aria-label="Secciones">
-  <button data-tab="sesion" class="on" aria-current="page"><span class="ico" aria-hidden="true">🏋️</span>Sesión</button>
-  <button data-tab="rutinas"><span class="ico" aria-hidden="true">📋</span>Rutinas</button>
-  <button data-tab="progreso"><span class="ico" aria-hidden="true">📈</span>Progreso</button>
-  <button data-tab="peso"><span class="ico" aria-hidden="true">⚖️</span>Peso</button>
-  <button data-tab="datos"><span class="ico" aria-hidden="true">⚙️</span>Datos</button>
+  <button data-tab="sesion" class="on" aria-current="page"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>Sesión</button>
+  <button data-tab="rutinas"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h6"/></svg>Rutinas</button>
+  <button data-tab="progreso"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Progreso</button>
+  <button data-tab="historial"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4M12 7v5l3 2"/></svg>Historial</button>
+  <button data-tab="peso"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 9a4.5 4.5 0 0 1 7 0M12 13l2-3"/></svg>Peso</button>
+  <button data-tab="datos"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Datos</button>
 </nav>
 
+<div id="nueva-version" class="nueva-version hidden" role="status">
+  <span>Hay una versión nueva de la app.</span>
+  <button id="nv-actualizar">Actualizar</button>
+</div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="panel" class="panel hidden" role="dialog" aria-modal="true" aria-labelledby="panel-tit">
+  <div class="panel-fondo"></div>
+  <div class="panel-hoja">
+    <div class="panel-asa" aria-hidden="true"></div>
+    <h3 id="panel-tit"></h3>
+    <div id="panel-cuerpo"></div>
+    <div class="row panel-botones" id="panel-botones"></div>
+  </div>
+</div>
 <div id="modo" class="modo hidden" role="dialog" aria-label="Descanso">
   <div class="modo-fondo"></div>
   <div class="modo-cont">
@@ -463,6 +510,7 @@
   </div>
 </div>
 
+<script src="logica.js"></script>
 <script src="base.js"></script>
 <script src="almacen.js"></script>
 <script src="sync.js"></script>

@@ -12,7 +12,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const K_META = "gymapp_meta", K_BORRADOR = "gymapp_borrador";
 // Para peso la clave de conflicto es (usuario, fecha); para notas, (usuario, ejercicio); para el resto, el id.
-const ONCONFLICT = { peso: "user_id,fecha", notas_ejercicio: "user_id,ejercicio" };
+const ONCONFLICT = { peso: "user_id,fecha", notas_ejercicio: "user_id,ejercicio", preferencias: "user_id" };
 
 // ---------- Estado ----------
 function DB_VACIA() { return { rutinas: [], sesiones: [], peso: [], ejercicios: [], notas: [] }; }
@@ -29,7 +29,7 @@ let sincronizando = false;
 let ultimoError = "";
 const charts = {};
 // Columnas nuevas de la migración v10. null = todavía no se comprobó.
-const esquemaOK = { v10: null, notas: null };
+const esquemaOK = { v10: null, notas: null, prefs: null };
 
 // ---------- Utilidades ----------
 const $ = id => document.getElementById(id);
@@ -43,16 +43,7 @@ function hoy() {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
-// 1RM estimado (Epley). Si la serie tiene RPE, se suman las repeticiones que te quedaban en reserva
-// (10 − RPE) para estimar cuántas habrías hecho hasta el fallo. La reserva se limita a 3 repeticiones:
-// la estimación del esfuerzo es poco precisa lejos del fallo (Robinson 2024), así que con RPE bajos
-// el resultado queda del lado conservador. Sin RPE, es Epley clásico con las repeticiones hechas.
-function e1rm(kg, reps, rpe) {
-  const r = Number(rpe);
-  const reserva = rpe != null && rpe !== "" && r >= 1 && r <= 10 ? Math.min(3, 10 - r) : 0;
-  const n = reps + reserva;
-  return n <= 1 ? kg : kg * (1 + n / 30);
-}
+// e1rm() y las reglas de clasificación viven en logica.js (se cargan antes que este archivo).
 function leerJSON(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch (e) { return def; } }
 const DIA_MS = 864e5;
 const promedio = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
@@ -74,7 +65,6 @@ const diasEntre = (a, b) => Math.round((new Date(b + "T00:00") - new Date(a + "T
 //    siendo hipertrofia; lejos del fallo o sin RPE, son resistencia muscular.
 //  - La carga también cuenta: 6 a 8 repeticiones con el 85 % o más de tu mejor 1RM de fuerza es fuerza.
 const TIPOS = ["fuerza", "hipertrofia", "resistencia"];
-const tipoViejo = reps => reps <= 5 ? "fuerza" : reps <= 12 ? "hipertrofia" : "resistencia";
 
 // Mejor 1RM de fuerza por ejercicio (solo series de 1 a 5 repeticiones, sin calentamientos).
 // Se calcula una vez por tanda de dibujo y se descarta enseguida, así siempre está al día.
@@ -94,14 +84,9 @@ function refFuerza(ej) {
   return _refFuerza[ej] || 0;
 }
 
-// Clasifica una serie a partir de repeticiones, carga y esfuerzo.
+// Clasifica una serie a partir de repeticiones, carga y esfuerzo (la regla está en logica.js).
 function clasificarSerie(x) {
-  const reps = Number(x.reps), rpe = x.rpe == null || x.rpe === "" ? null : Number(x.rpe);
-  if (reps <= 5) return "fuerza";
-  const ref = x.ejercicio ? refFuerza(x.ejercicio) : 0;
-  if (reps <= 8 && ref > 0 && x.kg >= ref * 0.85) return "fuerza";
-  if (reps <= 15) return "hipertrofia";
-  return rpe !== null && rpe >= 8 ? "hipertrofia" : "resistencia";
+  return clasificarSerieBase(x, x.ejercicio ? refFuerza(x.ejercicio) : 0);
 }
 
 // Tipo de una serie ya guardada. No se modifica nada en la base:
@@ -122,6 +107,106 @@ const sesionesConSeries = () => db.sesiones.filter(s => s.series.length);
 
 // Vibración corta al tocar (solo en celulares que la soportan).
 function haptico(ms = 12) { try { navigator.vibrate?.(ms); } catch (e) {} }
+
+// ---------- Paneles (reemplazan a alert, confirm y prompt) ----------
+// Hoja que sube desde abajo. Todas devuelven una promesa: hay que usar await.
+let _panelRes = null, _panelFoco = null, _panelBotones = [];
+function cerrarPanel(valor) {
+  $("panel").classList.add("hidden");
+  document.body.classList.remove("con-panel");
+  const r = _panelRes;
+  _panelRes = null;
+  if (r) r(typeof valor === "function" ? valor() : valor);
+  try { _panelFoco?.focus?.(); } catch (e) {}
+}
+function mostrarPanel({ titulo, cuerpo, botones }) {
+  if (_panelRes) cerrarPanel(null);
+  _panelOpciones = null;
+  return new Promise(res => {
+    _panelRes = res;
+    _panelFoco = document.activeElement;
+    _panelBotones = botones;
+    $("panel-tit").textContent = titulo || "";
+    $("panel-cuerpo").innerHTML = cuerpo || "";
+    $("panel-botones").innerHTML = botones.map((b, i) => `<button class="btn ${b.clase || "sec"}" data-i="${i}">${esc(b.texto)}</button>`).join("");
+    $("panel").classList.remove("hidden");
+    document.body.classList.add("con-panel");
+    const primero = $("panel-cuerpo").querySelector("input, select, textarea");
+    setTimeout(() => (primero || $("panel-botones").lastElementChild)?.focus(), 40);
+  });
+}
+$("panel-botones").onclick = e => {
+  const b = e.target.closest("button[data-i]");
+  if (b) cerrarPanel(_panelBotones[+b.dataset.i].valor);
+};
+$("panel").querySelector(".panel-fondo").onclick = () => cerrarPanel(null);
+document.addEventListener("keydown", e => {
+  if ($("panel").classList.contains("hidden")) return;
+  if (e.key === "Escape") cerrarPanel(null);
+  if (e.key === "Enter" && e.target.matches("#panel-cuerpo input")) { e.preventDefault(); $("panel-botones").lastElementChild?.click(); }
+});
+// Los botones de elección única (como el RPE) dentro de un panel.
+$("panel-cuerpo").addEventListener("click", e => {
+  const c = e.target.closest(".pf-chips button[data-v]");
+  if (!c) return;
+  const grupo = c.parentElement;
+  const ya = c.classList.contains("on");
+  grupo.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+  if (!ya) c.classList.add("on");
+  grupo.dataset.v = ya ? "" : c.dataset.v;
+  haptico(8);
+});
+
+const textoHTML = t => esc(t).replace(/\n/g, "<br>");
+function avisar(texto, titulo = "Atención") {
+  return mostrarPanel({ titulo, cuerpo: `<p class="panel-txt">${textoHTML(texto)}</p>`, botones: [{ texto: "Entendido", valor: true, clase: "cy" }] });
+}
+async function confirmar(texto, { titulo = "¿Seguro?", ok = "Aceptar", peligro = false } = {}) {
+  const r = await mostrarPanel({
+    titulo, cuerpo: `<p class="panel-txt">${textoHTML(texto)}</p>`,
+    botones: [{ texto: "Cancelar", valor: false }, { texto: ok, valor: true, clase: peligro ? "peligro" : "cy" }]
+  });
+  return r === true;
+}
+// Formulario corto. campos: [{ id, label, valor, tipo: "texto" | "numero" | "area" | "lista" | "chips", opciones, ayuda }]
+// Devuelve un objeto { id: valor } o null si se cancela.
+function pedirDatos({ titulo, texto, campos, ok = "Guardar" }) {
+  const html = campos.map(c => {
+    const id = "pf-" + c.id, v = c.valor ?? "";
+    let campo;
+    if (c.tipo === "area") campo = `<textarea id="${id}" rows="3" maxlength="${c.max || 300}">${esc(v)}</textarea>`;
+    else if (c.tipo === "lista") campo = `<select id="${id}">${c.opciones.map(o => { const [ov, ot] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(ov)}"${String(ov) === String(v) ? " selected" : ""}>${esc(ot)}</option>`; }).join("")}</select>`;
+    else if (c.tipo === "chips") campo = `<div id="${id}" class="chips pf-chips" data-v="${esc(v)}">${c.opciones.map(o => `<button type="button" class="chip${String(o) === String(v) ? " on" : ""}" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>`;
+    else campo = `<input id="${id}" type="text" inputmode="${c.tipo === "numero" ? "decimal" : "text"}" value="${esc(v)}" autocomplete="off"${c.max ? ` maxlength="${c.max}"` : ""}>`;
+    return `<div class="pf"><label for="${id}">${esc(c.label)}</label>${campo}${c.ayuda ? `<small class="mut">${esc(c.ayuda)}</small>` : ""}</div>`;
+  }).join("");
+  const leer = () => Object.fromEntries(campos.map(c => {
+    const el = $("pf-" + c.id);
+    return [c.id, c.tipo === "chips" ? (el.dataset.v ?? "") : el.value];
+  }));
+  return mostrarPanel({
+    titulo, cuerpo: (texto ? `<p class="panel-txt">${textoHTML(texto)}</p>` : "") + html,
+    botones: [{ texto: "Cancelar", valor: null }, { texto: ok, valor: leer, clase: "cy" }]
+  });
+}
+// Lista de opciones para elegir una. opciones: [{ valor, texto, detalle }]. Devuelve el valor o null.
+function elegirOpcion({ titulo, texto, opciones }) {
+  const p = mostrarPanel({
+    titulo,
+    cuerpo: (texto ? `<p class="panel-txt">${textoHTML(texto)}</p>` : "") +
+      `<div class="panel-lista">${opciones.map((o, i) => `<button class="panel-op" data-op="${i}"><b>${esc(o.texto)}</b>${o.detalle ? `<span class="mut">${esc(o.detalle)}</span>` : ""}</button>`).join("")}</div>`,
+    botones: [{ texto: "Cancelar", valor: null }]
+  });
+  _panelOpciones = opciones;   // después de mostrarPanel, que limpia las opciones anteriores
+  return p;
+}
+// Los botones de elegirOpcion cierran el panel con el valor de la opción.
+$("panel-cuerpo").addEventListener("click", e => {
+  const b = e.target.closest(".panel-op");
+  if (!b || !_panelOpciones) return;
+  cerrarPanel(_panelOpciones[+b.dataset.op].valor);
+});
+let _panelOpciones = null;
 
 // ---------- Avisos ----------
 function toast(texto) {

@@ -106,7 +106,7 @@ function cancelarTemporizador() {
 }
 $("tm-iniciar").onclick = () => {
   const seg = parseInt($("tm-seg").value);
-  if (!seg || seg < 1) return alert("Poné una cantidad de segundos.");
+  if (!seg || seg < 1) return avisar("Poné una cantidad de segundos.");
   prepararAudio();
   iniciarTemporizador(seg);
 };
