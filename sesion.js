@@ -309,20 +309,27 @@ function referenciaAnterior(b, u) {
   return mapa;
 }
 
-// Dropset: después de la última serie agrega series descendentes con ~20 % menos de peso cada una.
-// Se hacen seguidas, sin descanso. Si la última fila ya es un dropset, suma una más.
-function agregarDropset(b) {
-  const ult = b.filas[b.filas.length - 1];
-  const base = ult ? num(ult.kg || ult.okg) : NaN;
-  const reps = ult ? (parseInt(ult.reps || ult.oreps) || 10) : 10;
-  const cuantas = ult && ult.marca === "descendente" ? 1 : 2;
+// Dropset: agrega series descendentes (~20 % menos de peso cada una) justo después de la serie
+// indicada (o del final del ejercicio si no se indica). Se hacen seguidas, sin descanso.
+// Si a esa serie ya le siguen dropsets, suma uno más a la cadena.
+function agregarDropset(b, desde = null) {
+  let idx = desde ? b.filas.indexOf(desde) : b.filas.length - 1;
+  if (idx < 0) return;
+  if (b.filas[idx].marca === "calentamiento") { toast("Un dropset va después de una serie de trabajo, no del calentamiento"); return; }
+  while (b.filas[idx + 1]?.marca === "descendente") idx++;
+  const ref = b.filas[idx];
+  const base = num(ref.kg || ref.okg);
+  const reps = parseInt(ref.reps || ref.oreps) || 10;
+  const cuantas = ref.marca === "descendente" ? 1 : 2;
   let kg = isNaN(base) ? 0 : base;
+  const nuevas = [];
   for (let i = 0; i < cuantas; i++) {
     if (kg > 0) { const bajo = r25(kg * 0.8); kg = bajo < kg ? bajo : Math.max(0, kg - 2.5); }
-    b.filas.push(filaNueva(kg > 0 ? kg : "", reps, "descendente"));
+    nuevas.push(filaNueva(kg > 0 ? kg : "", reps, "descendente"));
   }
+  b.filas.splice(idx + 1, 0, ...nuevas);
   haptico(10);
-  toast("Dropset: bajá el peso y seguí sin descanso hasta el fallo");
+  toast("Dropset agregado: bajá el peso y seguí sin descanso hasta el fallo");
 }
 const hayFilasPendientes = () => !!borrador?.bloques.some(b => b.filas.some(f => !f.hecho));
 function proximaSerieTexto() {
@@ -399,6 +406,7 @@ pl.addEventListener("click", e => {
     b.filas.push(filaNueva(ult ? (ult.kg || ult.okg) : "", ult ? (ult.reps || ult.oreps) : 10));
   }
   if (acc === "drop") agregarDropset(b);
+  if (acc === "dropfila") agregarDropset(b, b.filas.find(x => x.id === btn.dataset.fref));
   if (acc === "cal") {
     const ref = Math.max(0, ...b.filas.filter(x => x.marca !== "calentamiento").map(x => num(x.kg || x.okg) || 0), mejorKgPrevio(b.ej, null, tipoObjetivo(b.ej)) * 0.8);
     if (!ref) return alert("Primero poné el peso de trabajo para calcular el calentamiento.");
@@ -726,8 +734,10 @@ function renderPlanilla() {
     const nota = notaDe(b.ej);
     let nTrab = 0;
     const refs = referenciaAnterior(b, u);
-    const filas = b.filas.map(f => {
+    const filas = b.filas.map((f, k) => {
       const esCal = f.marca === "calentamiento";
+      const tiraDrop = !esCal && b.filas[k + 1]?.marca !== "descendente"
+        ? `<button class="f-drop" data-acc="dropfila" data-fref="${f.id}" aria-label="Agregar dropset después de esta serie">↓ ${f.marca === "descendente" ? "otro descenso" : "dropset"}</button>` : "";
       const etiqueta = esCal ? "C" : f.marca === "descendente" ? "D" : String(++nTrab);
       const ant = f.etq || refs.get(f.id) || "—";
       return `
@@ -739,7 +749,7 @@ function renderPlanilla() {
           <input data-campo="rpe" inputmode="decimal" value="${esc(f.rpe)}" placeholder="–" aria-label="RPE del 1 al 10">
           <button class="f-ok" data-acc="ok" aria-pressed="${f.hecho}" aria-label="${f.hecho ? "Desmarcar serie" : "Marcar serie hecha"}">✓</button>
           ${f.hecho ? "" : `<button class="f-x" data-acc="borrarfila" aria-label="Quitar fila">×</button>`}
-        </div>`;
+        </div>${tiraDrop}`;
     }).join("");
     const hechas = b.filas.filter(f => f.hecho).length;
     return `
@@ -757,7 +767,6 @@ function renderPlanilla() {
         ${filas}
         <div class="bl-acc ${masAbiertos.has(b.id) ? "mas-abierto" : ""}">
           <button class="chip" data-acc="add">+ Serie</button>
-          <button class="chip" data-acc="drop">+ Dropset</button>
           <button class="chip" data-acc="cal">+ Calentamiento</button>
           <button class="chip chip-mas" data-acc="mas" aria-expanded="${masAbiertos.has(b.id)}">${masAbiertos.has(b.id) ? "Menos ▴" : "Más ▾"}</button>
           <button class="chip chip-sec" data-acc="ss">${b.ss ? "Separar" : "Superserie ↓"}</button>
@@ -919,7 +928,7 @@ function renderFoco(forzar = false) {
       </div>
       <button class="fo-ok ${f.hecho ? "des" : ""}" data-fa="ok">${f.hecho ? "✓ Hecha · tocá para desmarcar" : esDrop ? "✓ Dropset hecho" : "✓ Serie hecha"}</button>
       <div class="fo-mas">
-        <button class="chip" data-fa="drop">+ Dropset</button>
+        <button class="chip" data-fa="drop">↓ Dropset después de esta</button>
         <button class="chip" data-fa="add">+ Serie</button>
       </div>
     </div>
@@ -994,7 +1003,7 @@ $("foco").addEventListener("click", e => {
     if (f.hecho) { haptico(20); avanzarFocoTrasHecha(b); }
     return renderFoco(true);
   }
-  if (a === "drop") { agregarDropset(b); guardarBorrador(); renderSesion(); return renderFoco(true); }
+  if (a === "drop") { agregarDropset(b, f); guardarBorrador(); renderSesion(); return renderFoco(true); }
   if (a === "add") {
     const ult = b.filas[b.filas.length - 1];
     b.filas.push(filaNueva(ult ? (ult.kg || ult.okg) : "", ult ? (ult.reps || ult.oreps) : 10));
