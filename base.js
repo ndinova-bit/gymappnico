@@ -19,7 +19,7 @@ function DB_VACIA() { return { rutinas: [], sesiones: [], peso: [], ejercicios: 
 let user = null;
 let db = DB_VACIA();
 let cola = [];            // cambios pendientes de subir, en orden
-let ajustes = Object.assign({ meta: null, dias: 3, offline: false, hitos: [], hitosInit: false, calmo: true, descanso: 90, avisos: false }, leerJSON(K_META, {}));
+let ajustes = Object.assign({ meta: null, dias: 3, offline: false, hitos: [], hitosInit: false, calmo: true, descanso: 90, avisos: false, metaPend: false }, leerJSON(K_META, {}));
 let rangoPeso = 30;       // días del gráfico de peso (0 = todo)
 let sesionActualId = null;
 let modoRecuperacion = false;

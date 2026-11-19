@@ -31,14 +31,18 @@ $("meta-guardar").onclick = () => {
   const m = num($("meta-kg").value);
   if (!m) return alert("Ingresá un peso objetivo válido.");
   ajustes.meta = m;
+  ajustes.metaPend = true;
   guardarTodo();
+  sincronizar();
   renderTodo();
   toast(`Meta fijada en ${m} kg`);
 };
 $("meta-borrar").onclick = () => {
   ajustes.meta = null;
+  ajustes.metaPend = true;
   $("meta-kg").value = "";
   guardarTodo();
+  sincronizar();
   renderTodo();
 };
 function renderPeso() {

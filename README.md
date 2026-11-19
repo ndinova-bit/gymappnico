@@ -49,3 +49,7 @@ Esta app maneja datos de salud (peso y entrenamiento). No subas datos, capturas 
 - Catálogo: sin ejercicios repetidos y con orden que no separa mayúsculas de minúsculas.
 - `migracion_v12_limpiar_catalogo.sql` (opcional, a mano): borra repetidos del catálogo base.
 - Tests nuevos para tipo efectivo, catálogo y plan.
+
+## Cambios de la v31
+
+- La meta de peso se guarda en la cuenta (datos del usuario de Supabase Auth, sin migración) y se ve en todos tus dispositivos. Si la cambiás sin conexión, se sube al volver la red.

@@ -110,6 +110,7 @@ async function sincronizar() {
       guardarTodo();
       pintarEstado();
     }
+    await sincronizarMeta();
     if (!cola.length) await descargar();
   } catch (e) {
     // Sin red: se reintenta más tarde.
@@ -117,6 +118,30 @@ async function sincronizar() {
     sincronizando = false;
     pintarEstado();
   }
+}
+
+// La meta de peso viaja en los datos de la cuenta (no necesita migración): así se ve igual en todos tus dispositivos.
+// Si cambiaste la meta sin conexión (metaPend), se sube; si no, se adopta la de la cuenta.
+async function sincronizarMeta() {
+  try {
+    if (ajustes.metaPend) {
+      const { error } = await sb.auth.updateUser({ data: { meta_peso: ajustes.meta } });
+      if (!error) { ajustes.metaPend = false; guardarTodo(); }
+      return;
+    }
+    const { data } = await sb.auth.getUser();
+    const remota = data?.user?.user_metadata?.meta_peso;
+    const valida = typeof remota === "number" && remota > 0 ? remota : null;
+    // Primera vez con esta versión: si la meta solo estaba en este celular, se sube una sola vez.
+    if (!ajustes.metaSubida && valida === null && ajustes.meta) {
+      const { error } = await sb.auth.updateUser({ data: { meta_peso: ajustes.meta } });
+      if (!error) { ajustes.metaSubida = true; guardarTodo(); }
+      return;
+    }
+    if (!ajustes.metaSubida) { ajustes.metaSubida = true; guardarTodo(); }
+    if (valida !== null && valida !== ajustes.meta) { ajustes.meta = valida; guardarTodo(); renderTodo(); }
+    else if (valida === null && ajustes.meta) { ajustes.meta = null; guardarTodo(); renderTodo(); }
+  } catch (e) { /* sin red: se reintenta en la próxima sincronización */ }
 }
 
 async function descargar() {
