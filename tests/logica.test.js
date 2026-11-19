@@ -151,3 +151,33 @@ test("descarga: sube el esfuerzo (RPE)", () => {
   const r = L.senalesDescarga(dup, HOY);
   assert.ok(r.motivos.some(m => /RPE/.test(m)), JSON.stringify(r));
 });
+
+test("tipo efectivo: respeta lo elegido a mano y relee el resto", () => {
+  assert.equal(L.tipoEfectivo({ reps: 8, kg: 90, tipo_serie: "hipertrofia" }, 100), "fuerza");   // coincide con la regla vieja: se relee
+  assert.equal(L.tipoEfectivo({ reps: 8, kg: 60, tipo_serie: "fuerza" }, 100), "fuerza");         // elegido a mano
+  assert.equal(L.tipoEfectivo({ reps: 14, kg: 30, rpe: 9 }, 0), "hipertrofia");
+  assert.equal(L.tipoEfectivo({ reps: 20, kg: 10, tipo_serie: "resistencia", rpe: 6 }, 0), "resistencia");
+});
+
+test("catálogo: saca repetidos sin tildes ni mayúsculas y prefiere el propio", () => {
+  const l = L.dedupeCatalogo([
+    { nombre: "Press banca", user_id: null }, { nombre: "Press banca", user_id: null },
+    { nombre: "JALÓN NEUTRO", user_id: "u" }, { nombre: "Jalon neutro", user_id: null },
+    { nombre: "Remo en T", user_id: null }
+  ]);
+  assert.equal(l.length, 3);
+  assert.equal(l.find(e => /jalon/i.test(L.sinTildes(e.nombre))).user_id, "u");
+});
+
+test("orden de nombres: sin separar mayúsculas de minúsculas", () => {
+  const n = ["TRAPECIOS", "Abducción", "Curl", "ABDUCTORES"].sort(L.compararNombres);
+  assert.deepEqual(n, ["Abducción", "ABDUCTORES", "Curl", "TRAPECIOS"]);
+});
+
+test("plan: separa lo que pide acción de lo que solo se sigue", () => {
+  const g = L.agruparPlan([
+    { ej: "A", tipo: "mantener" }, { ej: "B", tipo: "sube" }, { ej: "C", tipo: "baja" }, { ej: "D", tipo: "reps" }, { ej: "E", tipo: "estancado" }
+  ]);
+  assert.deepEqual(g.actuar.map(x => x.ej), ["C", "E", "B"]);
+  assert.deepEqual(g.seguir.map(x => x.ej), ["D", "A"]);
+});

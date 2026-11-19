@@ -119,7 +119,7 @@ function renderProgresoEjercicio() {
     if (!xs.length) return;
     let v;
     if (metrica === "max") v = Math.max(...xs.map(x => x.kg));
-    if (metrica === "e1rm") v = Math.max(...xs.map(x => e1rm(x.kg, x.reps)));
+    if (metrica === "e1rm") v = Math.max(...xs.map(x => e1rm(x.kg, x.reps, x.rpe)));
     if (metrica === "vol") v = xs.reduce((a, x) => a + x.kg * x.reps, 0);
     puntos.push({ x: s.fecha.slice(5), y: Math.round(v * 10) / 10, f: s.fecha });
   });
@@ -149,7 +149,7 @@ function renderProgresoEjercicio() {
 // El 1RM solo sale de series de fuerza: en hipertrofia las repeticiones altas lo distorsionan.
 function e1rmSesion(ses, ej) {
   const xs = trab(ses).filter(x => x.ejercicio === ej && tipoDe(x) === "fuerza");
-  return xs.length ? Math.max(...xs.map(x => e1rm(x.kg, x.reps))) : null;
+  return xs.length ? Math.max(...xs.map(x => e1rm(x.kg, x.reps, x.rpe))) : null;
 }
 function ejerciciosEnSesiones() {
   const set = new Set();
@@ -269,14 +269,14 @@ function recomendaciones() {
       consejo = "Esta carga te exige al límite. Mantenela y buscá una repetición más antes de subir.";
     } else if ((rpeProm !== null && rpeProm <= 7.5 && repsMin >= 8) || (rpeProm === null && repsMin >= 10)) {
       tipo = "sube";
-      consejo = kgMax > 0 ? `Subí a ${fmt(kgMax + 2.5)} kg la próxima vez.` : "Sumá peso o una serie: con peso corporal la sobrecarga viene por repeticiones.";
+      consejo = kgMax > 0 ? `Subí a ${fmt(kgMax + incrementoDe(ej))} kg la próxima vez.` : "Sumá peso o una serie: con peso corporal la sobrecarga viene por repeticiones.";
     } else {
       tipo = "reps";
       consejo = "Sumá una repetición por serie hasta llegar al rango alto y recién después subí la carga.";
     }
     if (descProm !== null && repsMin < 6 && descProm < 120) consejo += " Para cargas altas conviene descansar 2 a 3 minutos.";
     const objetivo = {
-      sube: kgMax > 0 ? `${fmt(kgMax + 2.5)} kg × ${repsMin} reps` : `${repsMin + 1} reps`,
+      sube: kgMax > 0 ? `${fmt(kgMax + incrementoDe(ej))} kg × ${repsMin} reps` : `${repsMin + 1} reps`,
       reps: `${kgMax} kg · ${repsMin + 1} reps mínimas`,
       mantener: `${kgMax} kg · mismas reps`,
       baja: `${fmt(kgMax * 0.95)} kg`,
@@ -286,7 +286,8 @@ function recomendaciones() {
   });
   return out;
 }
-// Ejercicios de hipertrofia: la progresión se mira en repeticiones, no en 1RM.
+// Ejercicios de hipertrofia: la progresión se mira en repeticiones (doble progresión), no en 1RM.
+// Con RPE 9-10 el esfuerzo es el correcto para hipertrofia; si sobran repeticiones (RPE 6,5 o menos) se pide acercarse al fallo.
 function recHipertrofia(ej, ses) {
   const hist = ses.filter(s => trab(s).some(x => x.ejercicio === ej && tipoDe(x) === "hipertrofia"));
   if (!hist.length) return null;
@@ -294,44 +295,56 @@ function recHipertrofia(ej, ses) {
   const kgMax = Math.max(...xs.map(x => x.kg));
   const repsMin = Math.min(...xs.map(x => x.reps));
   const rpeProm = promedio(xs.map(x => x.rpe).filter(v => v != null));
-  if (rpeProm !== null && rpeProm >= 9) return { ej, tipo: "mantener", consejo: "Las series están muy cerca del fallo: mantené la carga y buscá una repetición más.", objetivo: `${fmt(kgMax)} kg · mismas reps` };
-  if (repsMin >= 12 && kgMax > 0) return { ej, tipo: "sube", consejo: "Llegaste al rango alto en todas las series: subí la carga y volvé a empezar desde el rango bajo.", objetivo: `${fmt(kgMax + 2.5)} kg × ${repsMin} reps` };
-  return { ej, tipo: "reps", consejo: "Sumá una repetición por serie hasta llegar a 12 y después subí la carga.", objetivo: `${fmt(kgMax)} kg · ${repsMin + 1} reps mínimas` };
+  const tope = Math.max(...xs.map(x => x.reps)) >= 13 ? 15 : 12;
+  const inc = incrementoDe(ej);
+  if (repsMin >= tope && kgMax > 0) return { ej, tipo: "sube", consejo: `Llegaste a ${tope} repeticiones en todas las series: subí la carga y volvé a empezar desde el rango bajo.`, objetivo: `${fmt(kgMax + inc)} kg × ${Math.max(6, tope - 5)} reps` };
+  if (rpeProm !== null && rpeProm <= 6.5) return { ej, tipo: "acercar", consejo: "Te sobran repeticiones: acercate al fallo (1 a 3 repeticiones en reserva) sumando una repetición o un poco de carga.", objetivo: `${fmt(kgMax)} kg · ${repsMin + 1} reps mínimas` };
+  return { ej, tipo: "reps", consejo: `Sumá una repetición por serie hasta llegar a ${tope} y después subí la carga.`, objetivo: `${fmt(kgMax)} kg · ${repsMin + 1} reps mínimas` };
+}
+// Series de muchas repeticiones y poco esfuerzo: no llegan a estimular, conviene más carga o más cercanía al fallo.
+function recResistencia(ej, ses) {
+  const hist = ses.filter(s => trab(s).some(x => x.ejercicio === ej && tipoDe(x) === "resistencia"));
+  if (!hist.length) return null;
+  const xs = trab(hist[hist.length - 1]).filter(x => x.ejercicio === ej && tipoDe(x) === "resistencia");
+  const kgMax = Math.max(...xs.map(x => x.kg));
+  return { ej, tipo: "acercar", consejo: "Son series de muchas repeticiones con poco esfuerzo: subí la carga o acercate al fallo.", objetivo: kgMax > 0 ? `${fmt(kgMax + incrementoDe(ej))} kg · rango de 8 a 15 reps` : "más repeticiones o más carga" };
 }
 function recomendacionesTodas() {
   const ses = sesionesConSeries();
   const out = recomendaciones();
   ejerciciosEnSesiones().forEach(ej => {
     if (out.some(x => x.ej === ej)) return;
-    const r = recHipertrofia(ej, ses);
+    const r = recHipertrofia(ej, ses) || recResistencia(ej, ses);
     if (r) out.push(r);
   });
   return out;
 }
-const ORDEN_PLAN = { baja: 0, estancado: 1, mantener: 2, reps: 3, sube: 4 };
-const ETQ_PLAN = { baja: "Bajó", estancado: "Estancado", mantener: "Al límite", reps: "Sumá reps", sube: "Subí carga" };
+const ETQ_PLAN = { baja: "Bajó", estancado: "Estancado", mantener: "Al límite", reps: "Sumá reps", sube: "Subí carga", acercar: "Acercate al fallo" };
+const CLASE_PLAN = { baja: "neg", estancado: "sol", sube: "pos", acercar: "cy" };
+// Dos grupos: "Para decidir ahora" (tarjetas) y "Seguí con el plan" (lista compacta que se abre con un toque).
 function htmlPlan(lista) {
-  const color = { baja: "neg", sube: "pos" };
-  return lista.map(x => `
-    <div class="plan-item" style="display:block">
-      <div><b style="color:var(--sun)">${esc(x.ej)}</b> <span class="${color[x.tipo] || ""}">${ETQ_PLAN[x.tipo]}</span></div>
+  const { actuar, seguir } = agruparPlan(lista);
+  const tarjeta = x => `
+    <div class="plan-card ${CLASE_PLAN[x.tipo] || ""}">
+      <div class="plan-cab"><b>${esc(x.ej)}</b><span class="plan-pill">${ETQ_PLAN[x.tipo]}</span></div>
+      <div class="plan-obj">${esc(x.objetivo)}</div>
       <div class="mut">${esc(x.consejo)}</div>
-      <div style="margin-top:6px">Próxima vez: <b>${esc(x.objetivo)}</b></div>
-    </div>`).join("");
+    </div>`;
+  const fila = x => `
+    <div class="plan-fila"><span>${esc(x.ej)}</span><b>${esc(x.objetivo)}</b></div>`;
+  return `
+    ${actuar.length ? `<div class="plan-tit">Para decidir ahora <span class="mut">${actuar.length}</span></div>${actuar.map(tarjeta).join("")}` : '<p class="mut">Nada urgente: seguí con las cargas y repeticiones de abajo.</p>'}
+    ${seguir.length ? `<details class="plan-mas"${actuar.length ? "" : " open"}><summary>Seguí con el plan <span class="mut">${seguir.length} ${seguir.length === 1 ? "ejercicio" : "ejercicios"}</span></summary>${seguir.map(fila).join("")}<p class="mut">Sumá una repetición por serie hasta el tope de tu rango y después subí la carga. Si una carga te exige al límite, mantenela hasta ganar una repetición.</p></details>` : ""}`;
 }
 function renderPlan() {
-  const r = recomendacionesTodas().sort((a, b) => ORDEN_PLAN[a.tipo] - ORDEN_PLAN[b.tipo]);
+  const r = recomendacionesTodas();
   $("plan").innerHTML = r.length ? htmlPlan(r) : '<p class="mut">Cuando tengas 2 sesiones con el mismo ejercicio, acá aparece qué hacer la próxima vez.</p>';
 }
 $("so-analizar").onclick = () => {
-  const color = { baja: "neg", sube: "pos" };
-  const r = recomendacionesTodas().sort((a, b) => ORDEN_PLAN[a.tipo] - ORDEN_PLAN[b.tipo]);
-  $("so-resultado").innerHTML = r.length ? `
-    <p class="mut">Sobrecarga progresiva: subir de a poco la carga, las repeticiones o las series. Orientativo; no reemplaza a tu profesor.</p>
-    ${r.map(x => `
-      <div class="row filas">
-        <div style="flex:1 1 70%"><b style="color:var(--sun)">${esc(x.ej)}</b> <span class="${color[x.tipo] || ""}">${ETQ_PLAN[x.tipo]}</span><div class="mut">${esc(x.consejo)}</div></div>
-      </div>`).join("")}` : '<p class="mut">Necesitás al menos 2 sesiones con el mismo ejercicio para dar recomendaciones.</p>';
+  const r = recomendacionesTodas();
+  $("so-resultado").innerHTML = r.length
+    ? `<p class="mut">Sobrecarga progresiva: subir de a poco la carga, las repeticiones o las series. Orientativo; no reemplaza a tu profesor.</p>${htmlPlan(r)}`
+    : '<p class="mut">Necesitás al menos 2 sesiones con el mismo ejercicio para dar recomendaciones.</p>';
 };
 
 // ---------- Rachas e hitos ----------
@@ -470,25 +483,19 @@ function renderMapa() {
 }
 
 // ---------- Series por músculo (últimos 7 días) ----------
-// Rango orientativo de 10 a 20 series efectivas por semana para cada grupo.
-const RANGO_SERIES = [10, 20];
+// Series efectivas: 1 para el músculo principal y 0,5 para los que ayudan. Referencia general de 10 a 20 por semana.
 function renderVolGrupos() {
-  const corte = sumarDias(hoy(), -6);
-  const n = {};
-  GRUPOS_MUSC.forEach(g => n[g] = 0);
-  sesionesConSeries().forEach(s => {
-    if (s.fecha < corte) return;
-    trab(s).forEach(x => { const g = grupoDe(x.ejercicio); if (g in n) n[g]++; });
-  });
+  const res = seriesPorMusculo(sesionesConSeries(), sumarDias(hoy(), -6), ej => musculosDe(ej, grupoDe(ej)));
   const tope = 26;
-  $("vg-lista").innerHTML = GRUPOS_MUSC.map(g => {
-    const v = n[g];
-    const estado = v < RANGO_SERIES[0] ? ["bajo", "Poco"] : v <= RANGO_SERIES[1] ? ["ok", "En rango"] : ["alto", "Mucho"];
+  $("vg-lista").innerHTML = MUSCULOS.map(m => {
+    const v = res[m].efectivas, [min, max] = rangoDe(m);
+    const estado = v < min ? ["bajo", "Poco"] : v <= max ? ["ok", "En rango"] : ["alto", "Mucho"];
+    const n = Number.isInteger(v) ? v : v.toFixed(1).replace(".", ",");
     return `
       <div class="vg">
-        <div class="vg-cab"><b>${esc(g)}</b><span class="vg-est ${estado[0]}">${estado[1]}</span><span class="mut vg-n">${v} series</span></div>
-        <div class="vg-barra" role="img" aria-label="${esc(g)}: ${v} series, ${estado[1]}">
-          <div class="vg-zona" style="left:${RANGO_SERIES[0] / tope * 100}%;width:${(RANGO_SERIES[1] - RANGO_SERIES[0]) / tope * 100}%"></div>
+        <div class="vg-cab"><b>${esc(m)}</b><span class="vg-est ${estado[0]}">${estado[1]}</span><span class="mut vg-n">${n} series</span></div>
+        <div class="vg-barra" role="img" aria-label="${esc(m)}: ${n} series efectivas, ${estado[1]}">
+          <div class="vg-zona" style="left:${min / tope * 100}%;width:${(max - min) / tope * 100}%"></div>
           <div class="vg-val ${estado[0]}" style="width:${Math.min(100, v / tope * 100)}%"></div>
         </div>
       </div>`;
@@ -537,6 +544,7 @@ $("cal-grilla").onclick = e => {
 };
 
 function renderProgreso() {
+  refsFuerza = null;
   renderProgresoPeso();
   renderEntrenamiento();
   renderProgresoEjercicio();

@@ -302,6 +302,22 @@
   .racha .llama { display: inline-block; animation: latido 1.6s ease-in-out infinite; }
   .plan-item { display: flex; justify-content: space-between; gap: 10px; align-items: center; border-top: 1px solid var(--line); padding: 12px 0; flex-wrap: wrap; }
   .plan-item b { color: var(--lime); }
+  /* Progresión: tarjetas para decidir y lista compacta para seguir */
+  .plan-tit { font-weight: 800; font-size: 12px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--cyan); margin: 4px 0 10px; }
+  .plan-tit .mut { margin-left: 6px; letter-spacing: 0; }
+  .plan-card { --acento: var(--cyan); border: 1px solid var(--line); border-left: 4px solid var(--acento); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
+    background: color-mix(in srgb, var(--acento) 6%, transparent); }
+  .plan-card.pos { --acento: var(--lime); } .plan-card.neg { --acento: var(--red); } .plan-card.sol { --acento: var(--sun); }
+  .plan-card .plan-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .plan-card .plan-cab b { color: var(--txt); font-size: 15px; }
+  .plan-pill { font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; color: var(--acento);
+    border: 1px solid color-mix(in srgb, var(--acento) 55%, transparent); background: color-mix(in srgb, var(--acento) 10%, transparent); }
+  .plan-obj { font-size: 20px; font-weight: 800; margin: 6px 0 4px; color: var(--acento); font-variant-numeric: tabular-nums; }
+  .plan-mas { margin-top: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .plan-mas summary { cursor: pointer; font-weight: 800; padding: 10px 0; min-height: 44px; display: flex; align-items: center; gap: 8px; }
+  .plan-mas summary .mut { font-weight: 600; }
+  .plan-fila { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .plan-fila b { color: var(--lime); text-align: right; font-variant-numeric: tabular-nums; }
   .modo-off { background: linear-gradient(90deg, #5b6790, #7f8bb0) !important; color: #05060d !important; }
 
   @media (max-width: 600px) {

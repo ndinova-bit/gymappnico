@@ -13,6 +13,7 @@ function refrescarSelects() {
 }
 
 function renderTodo() {
+  refsFuerza = null;
   refrescarSelects();
   renderSesion();
   renderPicker();

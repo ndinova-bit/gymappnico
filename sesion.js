@@ -220,7 +220,7 @@ function marcarHecha(b, f) {
   const previo = mejorKgPrevio(b.ej, ses.id);
   const serie = {
     id: uid(), user_id: user.id, sesion_id: ses.id, ejercicio: b.ej, reps: v.reps, kg: v.kg, rpe: v.rpe,
-    descanso_seg: desc, tipo_serie: tipoDe({ reps: v.reps }), marca: f.marca, superserie: b.ss,
+    descanso_seg: desc, tipo_serie: tipoDe({ reps: v.reps, kg: v.kg, rpe: v.rpe, ejercicio: b.ej }), marca: f.marca, superserie: b.ss,
     created_at: new Date().toISOString()
   };
   ses.series.push(serie);
@@ -362,7 +362,7 @@ function actualizarHecha(b, f) {
   if (!s) return;
   const v = valorFila(f);
   if (v.error) { alert(v.error); renderSesion(); return; }
-  Object.assign(s, { kg: v.kg, reps: v.reps, rpe: v.rpe, tipo_serie: tipoDe({ reps: v.reps }) });
+  Object.assign(s, { kg: v.kg, reps: v.reps, rpe: v.rpe, tipo_serie: tipoDe({ reps: v.reps, kg: v.kg, rpe: v.rpe, ejercicio: s.ejercicio }) });
   encolar({ t: "upd", tabla: "series", id: s.id, cambios: { kg: s.kg, reps: s.reps, rpe: s.rpe, tipo_serie: s.tipo_serie } });
 }
 

@@ -28,6 +28,40 @@
     return rpe !== null && rpe >= 8 ? "hipertrofia" : "resistencia";
   }
 
+
+  // ---------- Tipo de serie efectivo ----------
+  // Un tipo guardado a mano (distinto del que daba la regla vieja por repeticiones) se respeta;
+  // el resto se vuelve a leer con la regla actual. refKg = mejor 1RM de fuerza del ejercicio.
+  function tipoEfectivo(x, refKg) {
+    const reps = Number(x.reps);
+    if (x.tipo_serie && x.tipo_serie !== tipoViejo(reps)) return x.tipo_serie;
+    return clasificarSerieBase(x, refKg || 0);
+  }
+
+  // ---------- Catálogo ----------
+  // Saca los ejercicios repetidos (mismo nombre sin tildes ni mayúsculas). Si hay uno propio y uno base, queda el propio.
+  function dedupeCatalogo(lista) {
+    const vistos = new Map();
+    (lista || []).forEach(e => {
+      const k = sinTildes(e.nombre).trim();
+      const previo = vistos.get(k);
+      if (!previo || (!previo.user_id && e.user_id)) vistos.set(k, e);
+    });
+    return [...vistos.values()];
+  }
+  const compararNombres = (a, b) => String(a).localeCompare(String(b), "es", { sensitivity: "base" });
+
+  // ---------- Plan de progresión ----------
+  // Ordena y agrupa las recomendaciones: lo que pide una decisión ya y lo que solo hay que seguir.
+  const ORDEN_PLAN = { baja: 0, estancado: 1, sube: 2, acercar: 3, reps: 4, mantener: 5 };
+  function agruparPlan(lista) {
+    const orden = (lista || []).slice().sort((a, b) => (ORDEN_PLAN[a.tipo] ?? 9) - (ORDEN_PLAN[b.tipo] ?? 9) || compararNombres(a.ej, b.ej));
+    return {
+      actuar: orden.filter(x => ["baja", "estancado", "sube", "acercar"].includes(x.tipo)),
+      seguir: orden.filter(x => !["baja", "estancado", "sube", "acercar"].includes(x.tipo))
+    };
+  }
+
   // ---------- Músculos ----------
   // Cada ejercicio trabaja un músculo principal (1) y otros que ayudan (0,5).
   // Se deduce del nombre, así sirve también para los ejercicios que agregues vos.
@@ -178,7 +212,7 @@
     e1rm, tipoViejo, clasificarSerieBase,
     MUSCULOS, musculosDe, principalDe, seriesPorMusculo, rangoDe, RANGOS_SERIES,
     incrementoDe, redondearA, progresarDoble, ajustarSeries, sustitutos, senalesDescarga, sinTildes,
-    diasEntreF
+    diasEntreF, tipoEfectivo, dedupeCatalogo, compararNombres, agruparPlan, ORDEN_PLAN
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else Object.assign(g, API);

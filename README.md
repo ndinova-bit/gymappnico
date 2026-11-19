@@ -41,3 +41,11 @@ Cambia solo el cálculo que se muestra; los datos guardados no se tocan.
 ## Privacidad
 
 Esta app maneja datos de salud (peso y entrenamiento). No subas datos, capturas ni exportaciones al repositorio.
+
+## Cambios de la v30
+
+- `logica.js` ahora se carga de verdad (`index.html` y `sw.js`) y se usa en toda la app: 1RM con RPE, tipo de serie nuevo (con referencia de fuerza por ejercicio) y series efectivas por músculo.
+- Progresión: tarjetas «Para decidir ahora» (bajó, estancado, subí carga, acercate al fallo) y lista compacta «Seguí con el plan». En hipertrofia, RPE 9-10 se lee como esfuerzo correcto; saltos de carga por ejercicio.
+- Catálogo: sin ejercicios repetidos y con orden que no separa mayúsculas de minúsculas.
+- `migracion_v12_limpiar_catalogo.sql` (opcional, a mano): borra repetidos del catálogo base.
+- Tests nuevos para tipo efectivo, catálogo y plan.

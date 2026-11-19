@@ -43,7 +43,7 @@ function hoy() {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
-function e1rm(kg, reps) { return reps === 1 ? kg : kg * (1 + reps / 30); }
+// e1rm() viene de logica.js (Epley con repeticiones en reserva si la serie tiene RPE).
 function leerJSON(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch (e) { return def; } }
 const DIA_MS = 864e5;
 const promedio = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
@@ -57,10 +57,21 @@ const diasEntre = (a, b) => Math.round((new Date(b + "T00:00") - new Date(a + "T
 
 // Tipo de serie: el elegido o, si no hay, el que corresponde por repeticiones.
 const TIPOS = ["fuerza", "hipertrofia", "resistencia"];
-function tipoDe(x) {
-  if (x.tipo_serie) return x.tipo_serie;
-  return x.reps <= 5 ? "fuerza" : x.reps <= 12 ? "hipertrofia" : "resistencia";
+// Mejor 1RM de fuerza (series de 1 a 5 repeticiones) por ejercicio: referencia para clasificar series pesadas de 6 a 8.
+// Se recalcula cada vez que se redibuja la pantalla (refsFuerza = null).
+let refsFuerza = null;
+function refFuerza(ej) {
+  if (!refsFuerza) {
+    refsFuerza = {};
+    db.sesiones.forEach(s => s.series.forEach(x => {
+      if (x.marca === "calentamiento" || !(x.kg > 0) || !(x.reps > 0) || x.reps > 5) return;
+      refsFuerza[x.ejercicio] = Math.max(refsFuerza[x.ejercicio] || 0, e1rm(x.kg, x.reps, x.rpe));
+    }));
+  }
+  return refsFuerza[ej] || 0;
 }
+// x puede traer ejercicio, kg y rpe; con solo reps se usa la regla por repeticiones.
+function tipoDe(x) { return tipoEfectivo(x, x.ejercicio ? refFuerza(x.ejercicio) : 0); }
 // Las series de calentamiento no cuentan para récords, 1RM, volumen ni progresión.
 const esTrabajo = x => x.marca !== "calentamiento";
 const trab = s => s.series.filter(esTrabajo);
@@ -145,7 +156,8 @@ function degradado(hex) {
 // ---------- Catálogo ----------
 const GRUPOS = ["Pecho", "Espalda", "Hombros", "Piernas", "Glúteos", "Brazos", "Core", "Cardio", "Otro"];
 function catalogo() {
-  return (db.ejercicios || []).slice().sort((a, b) => a.grupo.localeCompare(b.grupo) || a.nombre.localeCompare(b.nombre));
+  // Sin repetidos (el catálogo base puede haberse cargado dos veces) y con orden que no separa mayúsculas.
+  return dedupeCatalogo(db.ejercicios || []).sort((a, b) => compararNombres(a.grupo, b.grupo) || compararNombres(a.nombre, b.nombre));
 }
 function metDe(nombre) {
   const x = (db.ejercicios || []).find(e => e.nombre === nombre);
@@ -156,8 +168,8 @@ function ejerciciosConocidos() {
   const set = new Set();
   db.sesiones.forEach(s => s.series.forEach(x => set.add(x.ejercicio)));
   db.rutinas.forEach(r => r.ejercicios.forEach(e => set.add(e)));
-  (db.ejercicios || []).forEach(x => set.add(x.nombre));
-  return [...set].sort();
+  catalogo().forEach(x => set.add(x.nombre));
+  return [...set].sort(compararNombres);
 }
 
 // Bloques de la planilla con el menú "Más" abierto (solo en pantallas chicas).
