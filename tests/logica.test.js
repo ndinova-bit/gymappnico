@@ -181,3 +181,12 @@ test("plan: separa lo que pide acción de lo que solo se sigue", () => {
   assert.deepEqual(g.actuar.map(x => x.ej), ["C", "E", "B"]);
   assert.deepEqual(g.seguir.map(x => x.ej), ["D", "A"]);
 });
+
+test("presentación: nombres en mayúsculas y fechas cortas", () => {
+  assert.equal(L.nombreBonito("JALÓN NEUTRO"), "Jalón neutro");
+  assert.equal(L.nombreBonito("Press banca"), "Press banca");
+  assert.equal(L.nombreBonito("TRAP BAR"), "Trap bar");
+  assert.equal(L.nombreBonito("DB"), "DB");                 // muy corto: se deja igual
+  assert.equal(L.fechaCorta("2026-11-17"), "mar 17 nov");
+  assert.equal(L.fechaCorta("2026-11-19"), "jue 19 nov");
+});

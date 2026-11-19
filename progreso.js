@@ -109,7 +109,7 @@ function renderProgresoEjercicio() {
   const ejs = ejerciciosConocidos();
   const sel = $("p-ej");
   const actual = sel.value;
-  sel.innerHTML = ejs.map(e => `<option>${esc(e)}</option>`).join("");
+  sel.innerHTML = ejs.map(e => `<option value="${esc(e)}">${esc(nombreBonito(e))}</option>`).join("");
   if (actual && ejs.includes(actual)) sel.value = actual;
   const ej = sel.value;
   const metrica = $("p-metrica").value;
@@ -221,7 +221,7 @@ function renderRanking() {
     : r.sort((a, b) => b.pct - a.pct);
   $("ej-ranking").innerHTML = lista.length ? lista.map(x => `
     <button class="row filas fila-btn" data-ver="${esc(x.ej)}">
-      <div style="flex:1 1 60%;text-align:left"><b>${esc(x.ej)}</b><div class="mut">${x.n} sesiones · mejor 1RM ${fmt(x.mejor)} kg</div></div>
+      <div style="flex:1 1 60%;text-align:left"><b>${esc(nombreBonito(x.ej))}</b><div class="mut">${x.n} sesiones · mejor 1RM ${fmt(x.mejor)} kg</div></div>
       <b class="${x.pct > 0 ? "pos" : x.pct < 0 ? "neg" : ""}">${x.pct > 0 ? "+" : ""}${fmt(x.pct)}%</b>
     </button>`).join("") : '<p class="mut">Sin ejercicios para mostrar. Necesitás al menos 2 sesiones por ejercicio con series de fuerza.</p>';
 }
@@ -326,12 +326,12 @@ function htmlPlan(lista) {
   const { actuar, seguir } = agruparPlan(lista);
   const tarjeta = x => `
     <div class="plan-card ${CLASE_PLAN[x.tipo] || ""}">
-      <div class="plan-cab"><b>${esc(x.ej)}</b><span class="plan-pill">${ETQ_PLAN[x.tipo]}</span></div>
+      <div class="plan-cab"><b>${esc(nombreBonito(x.ej))}</b><span class="plan-pill">${ETQ_PLAN[x.tipo]}</span></div>
       <div class="plan-obj">${esc(x.objetivo)}</div>
       <div class="mut">${esc(x.consejo)}</div>
     </div>`;
   const fila = x => `
-    <div class="plan-fila"><span>${esc(x.ej)}</span><b>${esc(x.objetivo)}</b></div>`;
+    <div class="plan-fila"><span>${esc(nombreBonito(x.ej))}</span><b>${esc(x.objetivo)}</b></div>`;
   return `
     ${actuar.length ? `<div class="plan-tit">Para decidir ahora <span class="mut">${actuar.length}</span></div>${actuar.map(tarjeta).join("")}` : '<p class="mut">Nada urgente: seguí con las cargas y repeticiones de abajo.</p>'}
     ${seguir.length ? `<details class="plan-mas"${actuar.length ? "" : " open"}><summary>Seguí con el plan <span class="mut">${seguir.length} ${seguir.length === 1 ? "ejercicio" : "ejercicios"}</span></summary>${seguir.map(fila).join("")}<p class="mut">Sumá una repetición por serie hasta el tope de tu rango y después subí la carga. Si una carga te exige al límite, mantenela hasta ganar una repetición.</p></details>` : ""}`;
@@ -567,3 +567,26 @@ $("rango-filtro").onclick = e => {
   document.querySelectorAll("#rango-filtro .chip").forEach(c => c.classList.toggle("on", c === b));
   renderProgresoPeso();
 };
+
+// ---------- Barra de secciones de Progreso ----------
+// Un toque lleva a la sección; mientras se baja, queda marcada la que se está viendo.
+$("pr-nav").onclick = e => {
+  const b = e.target.closest("button[data-ir]");
+  if (!b) return;
+  haptico(8);
+  $(b.dataset.ir).scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+};
+if ("IntersectionObserver" in window) {
+  const marcar = id => document.querySelectorAll("#pr-nav button").forEach(x => {
+    const on = x.dataset.ir === id;
+    x.classList.toggle("on", on);
+    if (on) x.scrollIntoView({ block: "nearest", inline: "center" });
+  });
+  const visibles = new Map();
+  const obs = new IntersectionObserver(es => {
+    es.forEach(en => en.isIntersecting ? visibles.set(en.target.id, en.boundingClientRect.top) : visibles.delete(en.target.id));
+    if (!visibles.size) return;
+    marcar([...visibles.entries()].sort((a, b) => a[1] - b[1])[0][0]);
+  }, { rootMargin: "-120px 0px -55% 0px" });
+  document.querySelectorAll("#vista-progreso [id^='pr-']").forEach(el => { if (el.classList.contains("card")) obs.observe(el); });
+}

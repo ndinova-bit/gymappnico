@@ -193,19 +193,27 @@
 
   <!-- PROGRESO -->
   <section id="vista-progreso" class="hidden">
-    <div class="card">
+    <nav class="subnav" id="pr-nav" aria-label="Secciones de progreso">
+      <button data-ir="pr-resumen" class="on">Resumen</button>
+      <button data-ir="pr-plan">Qué hacer</button>
+      <button data-ir="pr-cuerpo">Cuerpo</button>
+      <button data-ir="pr-anio">Mi año</button>
+      <button data-ir="pr-peso">Peso</button>
+      <button data-ir="pr-ejercicios">Ejercicios</button>
+    </nav>
+    <div class="card" id="pr-resumen">
       <h2>Rachas <small>según tus días de entrenamiento</small></h2>
       <div class="rachas" id="rachas"></div>
       <h2 style="margin-top:6px">Próximo hito</h2>
       <div id="hitos"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="pr-plan">
       <h2>Progresión <small>qué hacer en tu próxima sesión</small></h2>
       <div id="plan"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="pr-cuerpo">
       <h2>Mapa corporal <small>volumen de los últimos 7 días</small></h2>
       <svg id="mapa-svg" viewBox="0 0 360 292" role="img" aria-label="Mapa corporal con el volumen por grupo muscular" style="width:100%;max-height:360px">
         <circle class="cabeza" cx="90" cy="24" r="16"/>
@@ -239,7 +247,7 @@
       <p class="mut">Cuenta las series de trabajo (sin calentamientos): 1 para el músculo principal y media para los que ayudan. El rango de 10 a 20 por semana es una referencia general; no reemplaza a tu profesor.</p>
     </div>
 
-    <div class="card">
+    <div class="card" id="pr-anio">
       <h2>Tu año <small>cada cuadradito es un día</small></h2>
       <div class="cal-scroll" id="cal-scroll">
         <div class="cal-meses" id="cal-meses"></div>
@@ -249,7 +257,7 @@
       <p class="mut" id="cal-resumen"></p>
     </div>
 
-    <div class="card">
+    <div class="card" id="pr-peso">
       <h2>Tu peso <small id="pr-rango"></small></h2>
       <div class="chips" id="rango-filtro">
         <button class="chip on" data-r="30">30 días</button>
@@ -269,7 +277,7 @@
       <div class="chartbox"><canvas id="en-semanas-chart"></canvas></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="pr-ejercicios">
       <h2>Progreso por ejercicio</h2>
       <div class="grid">
         <select id="p-ej" aria-label="Ejercicio"></select>

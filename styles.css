@@ -183,7 +183,25 @@
   details.hist summary::-webkit-details-marker { display: none; }
   details.hist summary::before { content: "▸"; color: var(--mag); text-shadow: 0 0 8px var(--mag); transition: transform .2s; }
   details.hist[open] summary::before { content: "▾"; }
+  details.hist summary { align-items: flex-start; flex-wrap: nowrap; gap: 12px; }
+  details.hist summary::before { margin-top: 3px; }
+  details.hist .h-fecha { flex: 0 0 64px; font-weight: 800; font-size: 13px; line-height: 1.25; color: var(--cyan); text-transform: capitalize;
+    padding: 6px 8px; border-radius: 10px; text-align: center; border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent); background: color-mix(in srgb, var(--cyan) 6%, transparent); }
+  details.hist .h-cuerpo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  details.hist .h-tit { font-size: 15px; color: var(--txt); text-shadow: none; }
+  details.hist .h-ejs { font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+  details.hist .h-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
+  details.hist .h-chips i { font-style: normal; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; font-variant-numeric: tabular-nums;
+    color: var(--lime); border: 1px solid color-mix(in srgb, var(--lime) 35%, transparent); background: color-mix(in srgb, var(--lime) 7%, transparent); }
   details.hist summary b { font-size: 16px; color: var(--cyan); text-shadow: 0 0 8px color-mix(in srgb, var(--cyan) 50%, transparent); }
+  /* Progreso: barra de secciones fija bajo el encabezado */
+  .subnav { position: sticky; top: 56px; z-index: 10; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -4px 14px; padding: 10px 4px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .subnav::-webkit-scrollbar { display: none; }
+  .subnav button { flex: 0 0 auto; min-height: 40px; padding: 0 16px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 800; letter-spacing: .3px;
+    color: var(--mut); background: transparent; border: 1px solid var(--line); transition: color .2s, border-color .2s, background .2s; }
+  .subnav button.on { color: var(--cyan); border-color: var(--cyan); background: color-mix(in srgb, var(--cyan) 10%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--cyan) 25%, transparent); }
+  #vista-progreso > .card[id^="pr-"] { scroll-margin-top: 124px; }
   details.hist .cuerpo { padding-top: 14px; }
 
   /* Barra de navegación inferior */

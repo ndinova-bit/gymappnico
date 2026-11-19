@@ -799,11 +799,22 @@ function renderHistorial() {
   const hist = db.sesiones.filter(s => s.id !== sesionActualId && s.series.length).slice(-10).reverse();
   const marcaTxt = x => x.marca === "calentamiento" ? " <span class='tag'>C</span>" : x.marca === "descendente" ? " <span class='tag'>D</span>" : "";
   $("s-historial").innerHTML = hist.length ? hist.map(s => {
-    const ejs = [...new Set(s.series.map(x => x.ejercicio))].join(", ");
+    const lista = [...new Set(s.series.map(x => x.ejercicio))];
     const vol = trab(s).reduce((a, x) => a + x.reps * x.kg, 0);
+    const rut = s.rutina_id ? db.rutinas.find(r => r.id === s.rutina_id)?.nombre : null;
+    const grupos = [...new Set(lista.map(grupoDe))].filter(g => g !== "Otro").slice(0, 3).join(" · ");
+    const titulo = rut || grupos || "Sesión";
+    const vista = lista.slice(0, 3).map(nombreBonito).join(", ") + (lista.length > 3 ? ` +${lista.length - 3}` : "");
     return `
       <details class="hist">
-        <summary><b>${s.fecha}</b><span class="mut">${esc(ejs)} · ${s.series.length} series · ${Math.round(vol).toLocaleString("es-AR")} kg${s.notas ? " · 📝 " + esc(s.notas.slice(0, 60)) : ""}</span></summary>
+        <summary>
+          <span class="h-fecha">${esc(fechaCorta(s.fecha))}</span>
+          <span class="h-cuerpo">
+            <b class="h-tit">${esc(nombreBonito(titulo))}</b>
+            <span class="mut h-ejs">${esc(vista)}</span>
+            <span class="h-chips"><i>${trab(s).length} series</i><i>${Math.round(vol).toLocaleString("es-AR")} kg</i>${s.notas ? `<i title="${esc(s.notas)}">📝 nota</i>` : ""}</span>
+          </span>
+        </summary>
         <div class="cuerpo">
           <div class="row">
             <input type="date" value="${s.fecha}" style="max-width:190px" onchange="cambiarFecha('${s.id}', this.value)" aria-label="Fecha de la sesión">
@@ -814,7 +825,7 @@ function renderHistorial() {
             <thead><tr><th>Ejercicio</th><th>Reps</th><th>Kg</th><th>RPE</th><th></th></tr></thead>
             <tbody>${s.series.map(x => `
               <tr>
-                <td>${esc(x.ejercicio)}${marcaTxt(x)}</td><td>${x.reps}</td><td>${fmtKg(x.kg)}</td><td>${x.rpe ?? "-"}</td>
+                <td>${esc(nombreBonito(x.ejercicio))}${marcaTxt(x)}</td><td>${x.reps}</td><td>${fmtKg(x.kg)}</td><td>${x.rpe ?? "-"}</td>
                 <td style="white-space:nowrap">
                   <button class="btn sec mini" onclick="editarSerie('${s.id}','${x.id}')">Editar</button>
                   <button class="btn peligro mini" onclick="borrarSerie('${s.id}','${x.id}')" aria-label="Borrar serie">×</button>

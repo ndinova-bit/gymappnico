@@ -53,3 +53,9 @@ Esta app maneja datos de salud (peso y entrenamiento). No subas datos, capturas 
 ## Cambios de la v31
 
 - La meta de peso se guarda en la cuenta (datos del usuario de Supabase Auth, sin migración) y se ve en todos tus dispositivos. Si la cambiás sin conexión, se sube al volver la red.
+
+## Cambios de la v32 (interfaz)
+
+- Progreso: barra de secciones fija (Resumen, Qué hacer, Cuerpo, Mi año, Peso, Ejercicios) que marca la sección que estás viendo.
+- Historial: fecha corta, nombre de la rutina (o grupos trabajados), vista previa de ejercicios y chips de series y kilos.
+- Nombres en mayúsculas se muestran como «Jalón neutro» en listas, plan, ranking y selector (solo al mostrar; el dato guardado no cambia).

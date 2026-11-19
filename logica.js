@@ -51,6 +51,24 @@
   }
   const compararNombres = (a, b) => String(a).localeCompare(String(b), "es", { sensitivity: "base" });
 
+  // ---------- Presentación ----------
+  // Solo para mostrar: un nombre todo en mayúsculas ("JALÓN NEUTRO") se ve como "Jalón neutro". El dato guardado no cambia.
+  function nombreBonito(n) {
+    const s = String(n ?? "");
+    const letras = s.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, "");
+    if (letras.length < 3 || s !== s.toUpperCase()) return s;
+    const m = s.toLowerCase();
+    return m.charAt(0).toUpperCase() + m.slice(1);
+  }
+  // "2026-11-17" -> "mié 17 nov"
+  function fechaCorta(iso) {
+    const d = new Date(iso + "T00:00");
+    if (isNaN(d)) return String(iso);
+    const dias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+    const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+    return `${dias[d.getDay()]} ${d.getDate()} ${meses[d.getMonth()]}`;
+  }
+
   // ---------- Plan de progresión ----------
   // Ordena y agrupa las recomendaciones: lo que pide una decisión ya y lo que solo hay que seguir.
   const ORDEN_PLAN = { baja: 0, estancado: 1, sube: 2, acercar: 3, reps: 4, mantener: 5 };
@@ -212,7 +230,7 @@
     e1rm, tipoViejo, clasificarSerieBase,
     MUSCULOS, musculosDe, principalDe, seriesPorMusculo, rangoDe, RANGOS_SERIES,
     incrementoDe, redondearA, progresarDoble, ajustarSeries, sustitutos, senalesDescarga, sinTildes,
-    diasEntreF, tipoEfectivo, dedupeCatalogo, compararNombres, agruparPlan, ORDEN_PLAN
+    diasEntreF, nombreBonito, fechaCorta, tipoEfectivo, dedupeCatalogo, compararNombres, agruparPlan, ORDEN_PLAN
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else Object.assign(g, API);

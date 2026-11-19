@@ -11,7 +11,7 @@ function renderPicker() {
   $("r-picker").innerHTML = Object.entries(grupos).map(([g, nombres]) => `
     <div class="pick-grupo">
       <div class="pick-tit">${esc(g)}</div>
-      <div class="chips">${nombres.map(n => `<button class="chip${rutinaBorrador.includes(n) ? " on" : ""}" data-pick="${esc(n)}" aria-pressed="${rutinaBorrador.includes(n)}">${esc(n)}</button>`).join("")}</div>
+      <div class="chips">${nombres.map(n => `<button class="chip${rutinaBorrador.includes(n) ? " on" : ""}" data-pick="${esc(n)}" aria-pressed="${rutinaBorrador.includes(n)}">${esc(nombreBonito(n))}</button>`).join("")}</div>
     </div>`).join("") || '<p class="mut">Todavía no hay ejercicios en el catálogo.</p>';
   $("r-elegidos").textContent = rutinaBorrador.length ? "Elegidos: " + rutinaBorrador.join(" · ") : "Ninguno elegido todavía.";
 }
