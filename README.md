@@ -59,3 +59,10 @@ Esta app maneja datos de salud (peso y entrenamiento). No subas datos, capturas 
 - Progreso: barra de secciones fija (Resumen, Qué hacer, Cuerpo, Mi año, Peso, Ejercicios) que marca la sección que estás viendo.
 - Historial: fecha corta, nombre de la rutina (o grupos trabajados), vista previa de ejercicios y chips de series y kilos.
 - Nombres en mayúsculas se muestran como «Jalón neutro» en listas, plan, ranking y selector (solo al mostrar; el dato guardado no cambia).
+
+## Cambios de la v33 (tablero y logros)
+
+- Tablero arriba de Sesión: saludo, anillo de la semana (días entrenados vs. tu meta), los 7 días, volumen semanal con mini gráfico, racha, récords de 30 días y barra de nivel.
+- Logros en Progreso: nivel (Bronce, Hierro, Acero, Titanio, Neón) con puntos por sesión, récord y semana en meta; 12 insignias con su avance; últimos récords de 1RM.
+- Mini gráfico de tendencia del 1RM en las tarjetas de «Para decidir ahora».
+- Todo se calcula con tus datos (nuevo `panel.js`); no hay tablas ni migraciones nuevas. Tests de semana, nivel, insignias y récords.

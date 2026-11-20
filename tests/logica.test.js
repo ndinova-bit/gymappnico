@@ -190,3 +190,45 @@ test("presentación: nombres en mayúsculas y fechas cortas", () => {
   assert.equal(L.fechaCorta("2026-11-17"), "mar 17 nov");
   assert.equal(L.fechaCorta("2026-11-19"), "jue 19 nov");
 });
+
+test("semana: lunes a domingo con las sesiones de cada día", () => {
+  const ses = [{ fecha: "2026-11-16", series: [1] }, { fecha: "2026-11-18", series: [1] }, { fecha: "2026-11-18", series: [1] }, { fecha: "2026-11-10", series: [1] }, { fecha: "2026-11-19", series: [] }];
+  const d = L.semanaDias(ses, "2026-11-19");   // jueves
+  assert.equal(d.length, 7);
+  assert.equal(d[0].fecha, "2026-11-16");
+  assert.deepEqual(d.map(x => x.sesiones), [1, 0, 2, 0, 0, 0, 0]);
+  assert.equal(d[3].hoy, true);
+  assert.equal(d[4].futuro, true);
+});
+
+test("nivel: sube de a poco y nunca baja de 1", () => {
+  assert.equal(L.nivelDe(0).nivel, 1);
+  assert.equal(L.nivelDe(119).nivel, 1);
+  assert.equal(L.nivelDe(120).nivel, 2);
+  assert.equal(L.nivelDe(480).nivel, 3);
+  const n = L.nivelDe(300);
+  assert.ok(n.pct > 0 && n.pct < 1);
+  assert.equal(L.nivelDe(120 * 400).nombre, "Neón");
+  assert.equal(L.nivelDe(120 * 100).nombre, "Acero");
+  assert.equal(L.puntosXP({ sesiones: 2, records: 1, semanasMeta: 1 }), 200 + 60 + 150);
+});
+
+test("insignias: se desbloquean con los datos y muestran el avance", () => {
+  const ins = L.insignias({ sesiones: 13, records: 0, rachaMeta: 3, volTotal: 172923 });
+  const por = id => ins.find(i => i.id === id);
+  assert.equal(por("s10").ok, true);
+  assert.equal(por("s25").ok, false);
+  assert.equal(por("s25").v, 13);
+  assert.equal(por("k4").v, 3);
+  assert.equal(por("t100").ok, true);
+  assert.equal(por("t250").ok, false);
+  assert.equal(por("r1").ok, false);
+});
+
+test("récords: solo cuenta cuando se supera el mejor anterior", () => {
+  const ses = [{ fecha: "a", e: { P: 100 } }, { fecha: "b", e: { P: 100, Q: 50 } }, { fecha: "c", e: { P: 110 } }, { fecha: "d", e: { P: 105, Q: 55 } }];
+  const r = L.ultimosRecords(ses, s => Object.keys(s.e), (s, ej) => s.e[ej] ?? null, 5);
+  assert.deepEqual(r.map(x => x.ej + x.fecha), ["Qd", "Pc"]);
+  assert.ok(Math.abs(r[1].pct - 10) < 1e-9);
+  assert.equal(L.ultimosRecords(ses, s => Object.keys(s.e), (s, ej) => s.e[ej] ?? null, 1).length, 1);
+});

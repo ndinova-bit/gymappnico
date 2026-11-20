@@ -82,6 +82,7 @@
 
   <!-- SESIÓN -->
   <section id="vista-sesion">
+    <div class="card tablero" id="tablero" aria-live="polite"></div>
     <div class="card hoy-card" id="hoy">
       <h2>¿Qué entreno hoy? <small>según lo que descansó cada músculo</small></h2>
       <div id="hoy-cuerpo"></div>
@@ -195,6 +196,7 @@
   <section id="vista-progreso" class="hidden">
     <nav class="subnav" id="pr-nav" aria-label="Secciones de progreso">
       <button data-ir="pr-resumen" class="on">Resumen</button>
+      <button data-ir="pr-logros">Logros</button>
       <button data-ir="pr-plan">Qué hacer</button>
       <button data-ir="pr-cuerpo">Cuerpo</button>
       <button data-ir="pr-anio">Mi año</button>
@@ -206,6 +208,11 @@
       <div class="rachas" id="rachas"></div>
       <h2 style="margin-top:6px">Próximo hito</h2>
       <div id="hitos"></div>
+    </div>
+
+    <div class="card" id="pr-logros">
+      <h2>Logros <small>tu nivel y tus insignias</small></h2>
+      <div id="logros"></div>
     </div>
 
     <div class="card" id="pr-plan">
@@ -483,6 +490,7 @@
 <script src="rutinas.js"></script>
 <script src="progreso.js"></script>
 <script src="datos.js"></script>
+<script src="panel.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

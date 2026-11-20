@@ -327,7 +327,7 @@ function htmlPlan(lista) {
   const tarjeta = x => `
     <div class="plan-card ${CLASE_PLAN[x.tipo] || ""}">
       <div class="plan-cab"><b>${esc(nombreBonito(x.ej))}</b><span class="plan-pill">${ETQ_PLAN[x.tipo]}</span></div>
-      <div class="plan-obj">${esc(x.objetivo)}</div>
+      <div class="plan-fila-obj"><div class="plan-obj">${esc(x.objetivo)}</div>${tendenciaEj(x.ej)}</div>
       <div class="mut">${esc(x.consejo)}</div>
     </div>`;
   const fila = x => `
@@ -553,6 +553,7 @@ function renderProgreso() {
   const p = calcularProgreso();
   renderRachasHitos(p);
   renderPlan();
+  renderLogros();
   renderMapa();
   renderVolGrupos();
   renderCalendario();

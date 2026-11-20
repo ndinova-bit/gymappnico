@@ -69,6 +69,66 @@
     return `${dias[d.getDay()]} ${d.getDate()} ${meses[d.getMonth()]}`;
   }
 
+  // ---------- Tablero, nivel e insignias ----------
+  const isoP = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const sumarDiasP = (f, n) => { const d = new Date(f + "T00:00"); d.setDate(d.getDate() + n); return isoP(d); };
+  const lunesDeP = f => { const d = new Date(f + "T00:00"); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoP(d); };
+
+  // Los 7 días de la semana en curso (lunes a domingo) con las sesiones de cada uno.
+  function semanaDias(sesiones, hoyISO) {
+    const lunes = lunesDeP(hoyISO);
+    const porDia = {};
+    (sesiones || []).forEach(s => { if (s.series && s.series.length) porDia[s.fecha] = (porDia[s.fecha] || 0) + 1; });
+    return ["L", "M", "M", "J", "V", "S", "D"].map((letra, i) => {
+      const fecha = sumarDiasP(lunes, i);
+      return { letra, fecha, sesiones: porDia[fecha] || 0, hoy: fecha === hoyISO, futuro: fecha > hoyISO };
+    });
+  }
+
+  // Puntos de experiencia: cada sesión, récord y semana en meta suma.
+  const puntosXP = st => (st.sesiones || 0) * 100 + (st.records || 0) * 60 + (st.semanasMeta || 0) * 150;
+  // Nivel a partir de los puntos: cada nivel cuesta un poco más que el anterior.
+  function nivelDe(xp) {
+    const nivel = Math.floor(Math.sqrt(Math.max(0, xp) / 120)) + 1;
+    const desde = 120 * (nivel - 1) ** 2, hasta = 120 * nivel ** 2;
+    const nombre = nivel < 5 ? "Bronce" : nivel < 10 ? "Hierro" : nivel < 15 ? "Acero" : nivel < 20 ? "Titanio" : "Neón";
+    return { nivel, nombre, xp, desde, hasta, pct: Math.min(1, (xp - desde) / (hasta - desde)) };
+  }
+
+  // Insignias: se calculan con tus datos, no hace falta guardar nada.
+  // st = { sesiones, records, rachaMeta (semanas seguidas en meta), volTotal (kg) }
+  function insignias(st) {
+    const mk = (id, icono, titulo, desc, v, max) => ({ id, icono, titulo, desc, v: Math.min(v, max), max, ok: v >= max });
+    const s = st.sesiones || 0, r = st.records || 0, k = st.rachaMeta || 0, t = (st.volTotal || 0) / 1000;
+    return [
+      mk("s1", "🏁", "Primera sesión", "Registraste tu primer entrenamiento", s, 1),
+      mk("s10", "💪", "En marcha", "10 sesiones registradas", s, 10),
+      mk("s25", "🔥", "Hábito", "25 sesiones registradas", s, 25),
+      mk("s50", "🏆", "Constante", "50 sesiones registradas", s, 50),
+      mk("s100", "👑", "Leyenda", "100 sesiones registradas", s, 100),
+      mk("k4", "📅", "Un mes firme", "4 semanas seguidas cumpliendo tu meta", k, 4),
+      mk("k12", "🗓️", "Trimestre de hierro", "12 semanas seguidas cumpliendo tu meta", k, 12),
+      mk("r1", "⭐", "Primer récord", "Superaste tu mejor 1RM estimado", r, 1),
+      mk("r10", "🌟", "Rompe marcas", "10 récords de 1RM", r, 10),
+      mk("t50", "🏗️", "50 toneladas", "50.000 kg movidos en total", t, 50),
+      mk("t100", "🚛", "100 toneladas", "100.000 kg movidos en total", t, 100),
+      mk("t250", "🚀", "250 toneladas", "250.000 kg movidos en total", t, 250)
+    ];
+  }
+
+  // Récords de 1RM estimado en orden cronológico; devuelve los n más nuevos (el más reciente primero).
+  // sesiones: ordenadas por fecha. ejerciciosDe(s) -> nombres; valorDe(s, ej) -> número o null.
+  function ultimosRecords(sesiones, ejerciciosDe, valorDe, n) {
+    const mejor = {}, out = [];
+    (sesiones || []).forEach(s => ejerciciosDe(s).forEach(ej => {
+      const v = valorDe(s, ej);
+      if (v == null) return;
+      if (mejor[ej] && v > mejor[ej]) out.push({ ej, fecha: s.fecha, valor: v, previo: mejor[ej], pct: (v / mejor[ej] - 1) * 100 });
+      mejor[ej] = Math.max(mejor[ej] || 0, v);
+    }));
+    return out.slice(-n).reverse();
+  }
+
   // ---------- Plan de progresión ----------
   // Ordena y agrupa las recomendaciones: lo que pide una decisión ya y lo que solo hay que seguir.
   const ORDEN_PLAN = { baja: 0, estancado: 1, sube: 2, acercar: 3, reps: 4, mantener: 5 };
@@ -230,7 +290,7 @@
     e1rm, tipoViejo, clasificarSerieBase,
     MUSCULOS, musculosDe, principalDe, seriesPorMusculo, rangoDe, RANGOS_SERIES,
     incrementoDe, redondearA, progresarDoble, ajustarSeries, sustitutos, senalesDescarga, sinTildes,
-    diasEntreF, nombreBonito, fechaCorta, tipoEfectivo, dedupeCatalogo, compararNombres, agruparPlan, ORDEN_PLAN
+    diasEntreF, semanaDias, puntosXP, nivelDe, insignias, ultimosRecords, nombreBonito, fechaCorta, tipoEfectivo, dedupeCatalogo, compararNombres, agruparPlan, ORDEN_PLAN
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else Object.assign(g, API);

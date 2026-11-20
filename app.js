@@ -16,6 +16,7 @@ function renderTodo() {
   refsFuerza = null;
   refrescarSelects();
   renderSesion();
+  renderTablero();
   renderPicker();
   renderRutinas();
   if (!$("vista-progreso").classList.contains("hidden")) renderProgreso();
