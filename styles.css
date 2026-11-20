@@ -754,3 +754,81 @@ body.gym .bl-tit b { font-size: 19px; }
 .plan-fila-obj .plan-obj { margin: 6px 0 4px; }
 
 @media (max-width: 360px) { .tb-kpis { grid-template-columns: 1fr 1fr; } .tb-kpi:first-child { grid-column: 1 / -1; } .lg-grid { grid-template-columns: repeat(2, 1fr); } }
+
+
+/* ---- v34: historial con búsqueda, calculadora de 1RM, descanso compacto, mapa corporal ---- */
+.hist-barra { display: grid; gap: 10px; margin-bottom: 12px; }
+#h-buscar { width: 100%; padding-left: 40px; background: var(--in) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%237f8bb0' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='6'/%3E%3Cpath d='m13 13 4 4'/%3E%3C/svg%3E") no-repeat 13px center; }
+#h-grupos { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; flex-wrap: nowrap; }
+#h-grupos .chip { flex: none; }
+#h-mas { width: 100%; margin-top: 10px; }
+.h-nota { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--sun) 7%, transparent); border: 1px solid color-mix(in srgb, var(--sun) 25%, transparent); font-size: 13px; }
+.vacio { text-align: center; padding: 14px 6px; }
+
+/* Descanso compacto cuando no hay nada en marcha */
+.desc-compacto { display: none; align-items: center; justify-content: space-between; gap: 10px; }
+.desc-compacto p { margin: 0; }
+#descanso-card.compacto { padding-top: 12px; padding-bottom: 12px; }
+#descanso-card.compacto h2 { margin-bottom: 6px; }
+#descanso-card.compacto .desc-compacto { display: flex; }
+#descanso-card.compacto > :not(h2:first-child):not(.desc-compacto) { display: none; }
+@media (min-width: 1100px) { #vista-sesion #descanso-card.compacto { position: static; } }
+
+/* Calculadora de 1RM */
+.calc > summary { list-style: none; cursor: pointer; }
+.calc > summary::-webkit-details-marker { display: none; }
+.calc > summary h2 { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.calc > summary h2::after { content: "▾"; margin-left: auto; color: var(--cyan); transition: transform .2s; }
+.calc[open] > summary h2::after { transform: rotate(180deg); }
+.calc-cuerpo { margin-top: 14px; display: grid; gap: 12px; }
+.calc-campos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: end; }
+.calc-campos label { display: grid; gap: 4px; font-size: 12px; color: var(--mut); font-weight: 700; }
+.calc-campos label i { font-weight: 400; font-style: normal; }
+.calc-campos input { width: 100%; text-align: center; font-size: 18px; font-weight: 800; }
+.calc-rm { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 16px; border-radius: 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--cyan) 16%, transparent), color-mix(in srgb, var(--mag) 12%, transparent));
+  border: 1px solid color-mix(in srgb, var(--cyan) 35%, transparent); }
+.calc-rm b { font-size: 34px; letter-spacing: .5px; color: var(--cyan); }
+.calc-rm b small { font-size: 15px; color: var(--mut); }
+.calc-tabla { width: 100%; border-collapse: collapse; text-align: center; }
+.calc-tabla th { color: var(--mut); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 4px; }
+.calc-tabla td { padding: 7px 4px; border-top: 1px solid var(--line); }
+.calc-tabla tr.tope td { color: var(--cyan); }
+.calc-aviso { margin: 0; font-size: 12px; }
+
+/* Mapa corporal por músculo */
+.mapa-leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 8px; font-size: 12px; color: var(--mut); }
+.mapa-leyenda i { font-style: normal; display: inline-flex; align-items: center; gap: 6px; }
+.mapa-leyenda i::before { content: ""; width: 11px; height: 11px; border-radius: 4px; background: #fff; opacity: .15; }
+.mapa-leyenda .l-bajo::before { background: var(--sun); opacity: .9; }
+.mapa-leyenda .l-ok::before { background: var(--lime); opacity: .9; }
+.mapa-leyenda .l-alto::before { background: var(--red); opacity: .9; }
+#mapa-svg { width: 100%; max-width: 560px; display: block; margin: 0 auto; height: auto; }
+#mapa-svg .base * , #mapa-svg .base > * { fill: rgba(255,255,255,.05); stroke: var(--line); stroke-width: 1.3; }
+#mapa-svg [data-m] { fill: #fff; fill-opacity: .07; stroke: var(--line); stroke-width: 1.2; cursor: pointer; transition: fill-opacity .5s, stroke .2s; outline: none; }
+#mapa-svg [data-m].mu-bajo { fill: var(--sun); fill-opacity: var(--int); }
+#mapa-svg [data-m].mu-ok { fill: var(--lime); fill-opacity: var(--int); }
+#mapa-svg [data-m].mu-alto { fill: var(--red); fill-opacity: var(--int); }
+#mapa-svg [data-m]:hover, #mapa-svg [data-m]:focus-visible { stroke: var(--txt); stroke-width: 2; }
+#mapa-svg [data-m].sel { stroke: var(--cyan); stroke-width: 2.6; filter: drop-shadow(0 0 5px var(--cyan)); }
+#mapa-svg .mapa-txt { fill: var(--mut); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+.mapa-det { min-height: 46px; margin: 8px 0 4px; padding: 10px 12px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; }
+.mapa-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 0; }
+.mapa-fila b { font-size: 12px; color: var(--mut); width: 100%; }
+@media (min-width: 700px) { .mapa-fila b { width: auto; min-width: 110px; } }
+.desc-compacto .chip { white-space: nowrap; }
+
+/* Resumen de peso */
+.peso-hero .ph-fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ph-et { font-size: 12px; font-weight: 700; }
+.ph-num { font-size: 52px; font-weight: 900; line-height: 1.05; letter-spacing: .5px; color: var(--txt); }
+.ph-num small { font-size: 18px; color: var(--mut); margin-left: 6px; font-weight: 700; }
+.ph-spark { color: var(--cyan); }
+.ph-spark .spark { width: 120px; height: 44px; }
+.ph-datos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0 12px; }
+.ph-datos div { padding: 10px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--line); min-width: 0; }
+.ph-datos small { display: block; color: var(--mut); font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+.ph-datos b { font-size: 15px; }
+.ph-datos b.pos { color: var(--lime); } .ph-datos b.neg { color: var(--sun); }
+.ph-meta { margin: 6px 0 0; font-size: 12px; }
+.ph-spark .spark.sube, .ph-spark .spark.baja { color: var(--cyan); }

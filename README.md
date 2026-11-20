@@ -60,6 +60,14 @@ Esta app maneja datos de salud (peso y entrenamiento). No subas datos, capturas 
 - Historial: fecha corta, nombre de la rutina (o grupos trabajados), vista previa de ejercicios y chips de series y kilos.
 - Nombres en mayúsculas se muestran como «Jalón neutro» en listas, plan, ranking y selector (solo al mostrar; el dato guardado no cambia).
 
+## Cambios de la v34
+- **Historial completo**: buscador (ejercicio, rutina o nota), filtro por grupo muscular, «Ver más» de a 10 y botón **↻ Repetir esta sesión** que carga esa sesión en la planilla.
+- **Calculadora de 1RM** dentro de la sesión: kilos, reps y RPE opcional, con tabla de porcentajes (kilos y repeticiones aproximadas). Puede cargar tu mejor serie de un ejercicio.
+- **Descanso compacto** mientras no hay sesión abierta ni cronómetro en marcha; se expande solo al empezar.
+- **Mapa corporal por músculo** (13 músculos, frente y espalda), coloreado según tus series de los últimos 7 días contra el rango de referencia. Se toca cada músculo para ver el detalle.
+- **Resumen de peso** arriba de la pestaña Peso: último registro, tendencia, cambio a 30 días, ritmo y avance hacia la meta.
+- Sin cambios en la base de datos ni en la sincronización.
+
 ## Cambios de la v33 (tablero y logros)
 
 - Tablero arriba de Sesión: saludo, anillo de la semana (días entrenados vs. tu meta), los 7 días, volumen semanal con mini gráfico, racha, récords de 30 días y barra de nivel.

@@ -131,3 +131,91 @@ function renderLogros() {
         <div class="lg-rec-v"><b>${fmtKg(Math.round(r.valor * 10) / 10)} kg</b><span class="pos">+${r.pct.toFixed(1).replace(".", ",")} %</span></div>
       </div>`).join("") : '<p class="mut">Todavía no superaste ninguna marca. Cuando subas tu mejor 1RM de un ejercicio, aparece acá.</p>'}`;
 }
+
+
+// ============================================================
+// Calculadora de 1RM (dentro de la sesión)
+// ============================================================
+function llenarCalcEjercicios() {
+  const sel = $("c-ej");
+  if (sel.dataset.n === String(db.sesiones.length)) return;
+  const con = new Set();
+  db.sesiones.forEach(s => trab(s).forEach(x => con.add(x.ejercicio)));
+  const lista = [...con].sort(compararNombres);
+  sel.innerHTML = '<option value="">Elegir de mis ejercicios…</option>' + lista.map(e => `<option value="${esc(e)}">${esc(nombreBonito(e))}</option>`).join("");
+  sel.dataset.n = String(db.sesiones.length);
+}
+function mejorSerieDe(ej) {
+  let mejor = null, mv = 0;
+  db.sesiones.forEach(s => trab(s).forEach(x => {
+    if (x.ejercicio !== ej || !(x.kg > 0)) return;
+    const v = e1rm(x.kg, x.reps, x.rpe);
+    if (v > mv) { mv = v; mejor = x; }
+  }));
+  return mejor;
+}
+function calcular1RM() {
+  const kg = num($("c-kg").value), reps = parseInt($("c-reps").value);
+  const rpeTxt = $("c-rpe").value.trim(), rpe = rpeTxt === "" ? null : num(rpeTxt);
+  const out = $("c-res");
+  if (!($("c-kg").value.trim() && $("c-reps").value.trim())) { out.innerHTML = '<p class="mut">Poné los kilos y las repeticiones de una serie.</p>'; return; }
+  if (!(kg > 0) || kg > 1000 || !(reps >= 1 && reps <= 30) || (rpe !== null && (isNaN(rpe) || rpe < 1 || rpe > 10))) {
+    out.innerHTML = '<p class="mut">Revisá los datos: kilos hasta 1000, reps de 1 a 30 y RPE de 1 a 10. Con más de 10 repeticiones la estimación pierde precisión.</p>'; return;
+  }
+  const rm = e1rm(kg, reps, rpe);
+  const ej = $("c-ej").value;
+  const paso = ej ? incrementoDe(ej) : 2.5;
+  const filas = tablaPorcentajes(rm, paso);
+  const aviso = reps > 10 ? '<p class="mut calc-aviso">Con más de 10 repeticiones el cálculo es menos preciso.</p>' : "";
+  out.innerHTML = `
+    <div class="calc-rm"><span class="mut">1RM estimado</span><b>${fmtKg(Math.round(rm * 10) / 10)} <small>kg</small></b></div>
+    ${aviso}
+    <table class="calc-tabla"><thead><tr><th>%</th><th>Kilos</th><th>Reps aprox.</th></tr></thead>
+      <tbody>${filas.map(f => `<tr class="${f.pct === 100 ? "tope" : ""}"><td>${f.pct}%</td><td><b>${fmtKg(f.kg)}</b></td><td>${f.reps}</td></tr>`).join("")}</tbody></table>
+    <p class="mut calc-aviso">Fórmula de Epley${rpe !== null ? " con el RPE como reserva (hasta 3 reps)" : ""}. Es una estimación: probar un 1RM real exige técnica y compañero.</p>`;
+}
+["c-kg", "c-reps", "c-rpe"].forEach(id => $(id).addEventListener("input", calcular1RM));
+$("c-ej").addEventListener("change", () => {
+  const x = $("c-ej").value ? mejorSerieDe($("c-ej").value) : null;
+  if (!x) return;
+  $("c-kg").value = fmtKg(x.kg); $("c-reps").value = x.reps; $("c-rpe").value = x.rpe ?? "";
+  calcular1RM();
+});
+$("calc1rm").addEventListener("toggle", () => { if ($("calc1rm").open) llenarCalcEjercicios(); });
+
+
+// ============================================================
+// Resumen de peso (arriba de la pestaña Peso)
+// ============================================================
+function renderPesoHero() {
+  const el = $("peso-hero");
+  const datos = (db.peso || []).slice().sort((a, b) => a.fecha.localeCompare(b.fecha));
+  if (!datos.length) {
+    el.innerHTML = '<h2>Tu peso</h2><p class="mut vacio">Cargá tu primer peso abajo y acá vas a ver cómo viene la tendencia.</p>';
+    return;
+  }
+  const ult = datos[datos.length - 1];
+  const hace30 = datos.filter(p => p.fecha <= sumarDias(ult.fecha, -30)).pop() || datos[0];
+  const cambio = ult.kg - hace30.kg;
+  const ritmo = ritmoSemanal(datos);
+  const m = ajustes.meta;
+  const ini = datos[0];
+  const falta = m ? ult.kg - m : null;
+  const avance = m && ini.kg !== m ? Math.max(0, Math.min(100, (ini.kg - ult.kg) / (ini.kg - m) * 100)) : null;
+  const f1 = n => (Math.round(n * 10) / 10).toString().replace(".", ",");
+  const signo = n => (n > 0 ? "+" : "") + f1(n);
+  el.innerHTML = `
+    <div class="ph-fila">
+      <div>
+        <span class="mut ph-et">Último registro · ${esc(fechaCorta(ult.fecha))}</span>
+        <div class="ph-num">${f1(ult.kg)}<small>kg</small></div>
+      </div>
+      <div class="ph-spark">${svgSpark(datos.slice(-20).map(p => p.kg), 120, 44)}</div>
+    </div>
+    <div class="ph-datos">
+      <div><small>Últimos 30 días</small><b class="${Math.abs(cambio) < .05 ? "" : cambio > 0 ? "neg" : "pos"}">${datos.length > 1 ? signo(cambio) + " kg" : "—"}</b></div>
+      <div><small>Ritmo</small><b>${ritmo === null ? "—" : signo(ritmo) + " kg/sem"}</b></div>
+      <div><small>Meta</small><b>${m ? (falta > 0.05 ? "faltan " + f1(falta) : falta < -0.05 ? "superada" : "¡lista!") : "sin meta"}</b></div>
+    </div>
+    ${avance !== null ? `<div class="barra" role="img" aria-label="Avance hacia la meta: ${Math.round(avance)}%"><div style="width:${avance}%"></div></div><p class="mut ph-meta">${Math.round(avance)}% del camino a ${f1(m)} kg</p>` : ""}`;
+}

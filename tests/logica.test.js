@@ -232,3 +232,13 @@ test("récords: solo cuenta cuando se supera el mejor anterior", () => {
   assert.ok(Math.abs(r[1].pct - 10) < 1e-9);
   assert.equal(L.ultimosRecords(ses, s => Object.keys(s.e), (s, ej) => s.e[ej] ?? null, 1).length, 1);
 });
+
+test("tablaPorcentajes: 100 kg de 1RM", () => {
+  const L = require("../logica.js");
+  const t = L.tablaPorcentajes(100, 2.5);
+  assert.equal(t[0].kg, 100); assert.equal(t[0].reps, 1);
+  const p80 = t.find(x => x.pct === 80);
+  assert.equal(p80.kg, 80); assert.equal(p80.reps, 8);
+  assert.equal(t.find(x => x.pct === 85).reps, 5);
+  assert.equal(t.find(x => x.pct === 50).kg, 50);
+});

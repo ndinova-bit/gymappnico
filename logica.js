@@ -211,6 +211,16 @@
   }
   const redondearA = (kg, paso) => Math.round(kg / paso) * paso;
 
+  // Tabla de porcentajes de un 1RM: kilos redondeados al paso y repeticiones aproximadas (inversa de Epley).
+  const PORCENTAJES_RM = [100, 95, 90, 85, 80, 75, 70, 65, 60, 50];
+  function tablaPorcentajes(rm, paso = 2.5) {
+    return PORCENTAJES_RM.map(pct => ({
+      pct,
+      kg: redondearA(rm * pct / 100, paso),
+      reps: pct >= 100 ? 1 : Math.max(1, Math.round(30 * (100 / pct - 1)))
+    }));
+  }
+
   // Doble progresión: si todas las series del peso más alto llegaron al tope de repeticiones, se sube la carga.
   function progresarDoble({ xs, rmin, rmax, inc, descarga }) {
     const kgTop = Math.max(...xs.map(x => x.kg));
@@ -289,7 +299,7 @@
   const API = {
     e1rm, tipoViejo, clasificarSerieBase,
     MUSCULOS, musculosDe, principalDe, seriesPorMusculo, rangoDe, RANGOS_SERIES,
-    incrementoDe, redondearA, progresarDoble, ajustarSeries, sustitutos, senalesDescarga, sinTildes,
+    incrementoDe, redondearA, tablaPorcentajes, progresarDoble, ajustarSeries, sustitutos, senalesDescarga, sinTildes,
     diasEntreF, semanaDias, puntosXP, nivelDe, insignias, ultimosRecords, nombreBonito, fechaCorta, tipoEfectivo, dedupeCatalogo, compararNombres, agruparPlan, ORDEN_PLAN
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;

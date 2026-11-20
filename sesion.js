@@ -472,10 +472,7 @@ function editarNotaEjercicio(ej) {
 }
 
 // ---------- Repetir y terminar ----------
-$("s-repetir").onclick = () => {
-  const previas = sesionesConSeries().filter(s => s.id !== sesionActualId).sort((a, b) => b.fecha.localeCompare(a.fecha));
-  if (!previas.length) return alert("No hay una sesión anterior para repetir.");
-  const origen = previas[0];
+function repetirSesion(origen, alScroll = false) {
   const bor = asegurarBorrador();
   const porEj = {};
   origen.series.forEach(x => (porEj[x.ejercicio] = porEj[x.ejercicio] || []).push(x));
@@ -487,8 +484,18 @@ $("s-repetir").onclick = () => {
   });
   guardarBorrador();
   renderSesion();
-  toast(`Cargada la sesión del ${origen.fecha}: tildá cada serie al hacerla`);
+  toast(`Cargada la sesión del ${fechaCorta(origen.fecha)}: tildá cada serie al hacerla`);
+  if (alScroll) $("planilla").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("s-repetir").onclick = () => {
+  const previas = sesionesConSeries().filter(s => s.id !== sesionActualId).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  if (!previas.length) return alert("No hay una sesión anterior para repetir.");
+  repetirSesion(previas[0]);
 };
+function repetirDesdeHistorial(id) {
+  const s = db.sesiones.find(x => x.id === id);
+  if (s) repetirSesion(s, true);
+}
 
 function quitarSesion(id) {
   db.sesiones = db.sesiones.filter(s => s.id !== id);
@@ -793,18 +800,53 @@ function renderSesion() {
   renderPlanilla();
   renderHistorial();
   renderFoco();
+  actualizarDescansoCompacto();
+}
+
+// El Descanso ocupa poco mientras no hay sesión abierta ni cronómetro andando.
+let descansoAbierto = false;
+function actualizarDescansoCompacto() {
+  const activo = !!(sesionActual() || borrador?.bloques.length) || !!rsId || !!tmId || descansoAbierto;
+  $("descanso-card").classList.toggle("compacto", !activo);
+}
+$("rs-abrir").onclick = () => { descansoAbierto = true; actualizarDescansoCompacto(); };
+
+// ---------- Historial con búsqueda y filtros ----------
+const histFiltro = { q: "", g: "", n: 10 };
+function sesionesHistorial() {
+  const q = sinTildes(histFiltro.q).trim();
+  return db.sesiones
+    .filter(s => s.id !== sesionActualId && s.series.length)
+    .filter(s => {
+      if (histFiltro.g && !s.series.some(x => grupoDe(x.ejercicio) === histFiltro.g)) return false;
+      if (!q) return true;
+      const rut = s.rutina_id ? db.rutinas.find(r => r.id === s.rutina_id)?.nombre : "";
+      const texto = sinTildes([rut, s.notas, s.fecha, ...s.series.map(x => x.ejercicio)].join(" "));
+      return q.split(/\s+/).every(t => texto.includes(t));
+    })
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
 }
 
 function renderHistorial() {
-  const hist = db.sesiones.filter(s => s.id !== sesionActualId && s.series.length).slice(-10).reverse();
+  const todas = db.sesiones.filter(s => s.id !== sesionActualId && s.series.length);
+  const lista = sesionesHistorial();
+  const hist = lista.slice(0, histFiltro.n);
   const marcaTxt = x => x.marca === "calentamiento" ? " <span class='tag'>C</span>" : x.marca === "descendente" ? " <span class='tag'>D</span>" : "";
-  $("s-historial").innerHTML = hist.length ? hist.map(s => {
-    const lista = [...new Set(s.series.map(x => x.ejercicio))];
+  const filtrando = !!(histFiltro.q.trim() || histFiltro.g);
+  $("h-cant").textContent = todas.length ? (filtrando ? `${lista.length} de ${todas.length} sesiones` : `${todas.length} sesiones`) : "";
+  $("h-barra").classList.toggle("hidden", !todas.length);
+  document.querySelectorAll("#h-grupos [data-g]").forEach(c => c.classList.toggle("on", c.dataset.g === histFiltro.g));
+  $("h-mas").classList.toggle("hidden", lista.length <= hist.length);
+  $("h-mas").textContent = `Ver más (${Math.min(10, lista.length - hist.length)} de ${lista.length - hist.length} restantes)`;
+  if (!todas.length) { $("s-historial").innerHTML = '<p class="mut vacio">Todavía no hay sesiones cerradas. Cuando termines la primera, la vas a ver acá.</p>'; return; }
+  if (!hist.length) { $("s-historial").innerHTML = '<p class="mut vacio">No encontramos sesiones con ese filtro. Probá con otro ejercicio o sacá el grupo.</p>'; return; }
+  $("s-historial").innerHTML = hist.map(s => {
+    const ejs = [...new Set(s.series.map(x => x.ejercicio))];
     const vol = trab(s).reduce((a, x) => a + x.reps * x.kg, 0);
     const rut = s.rutina_id ? db.rutinas.find(r => r.id === s.rutina_id)?.nombre : null;
-    const grupos = [...new Set(lista.map(grupoDe))].filter(g => g !== "Otro").slice(0, 3).join(" · ");
+    const grupos = [...new Set(ejs.map(grupoDe))].filter(g => g !== "Otro").slice(0, 3).join(" · ");
     const titulo = rut || grupos || "Sesión";
-    const vista = lista.slice(0, 3).map(nombreBonito).join(", ") + (lista.length > 3 ? ` +${lista.length - 3}` : "");
+    const vista = ejs.slice(0, 3).map(nombreBonito).join(", ") + (ejs.length > 3 ? ` +${ejs.length - 3}` : "");
     return `
       <details class="hist">
         <summary>
@@ -816,10 +858,10 @@ function renderHistorial() {
           </span>
         </summary>
         <div class="cuerpo">
+          ${s.notas ? `<p class="h-nota">📝 ${esc(s.notas)}</p>` : ""}
           <div class="row">
-            <input type="date" value="${s.fecha}" style="max-width:190px" onchange="cambiarFecha('${s.id}', this.value)" aria-label="Fecha de la sesión">
-            <button class="btn sec mini fijo" onclick="editarNota('${s.id}')">Nota</button>
-            <button class="btn peligro mini fijo" onclick="borrarSesionConfirm('${s.id}')">Borrar sesión</button>
+            <button class="btn cy mini fijo" onclick="repetirDesdeHistorial('${s.id}')">↻ Repetir esta sesión</button>
+            <input type="date" value="${s.fecha}" style="max-width:170px" onchange="cambiarFecha('${s.id}', this.value)" aria-label="Fecha de la sesión">
           </div>
           <table>
             <thead><tr><th>Ejercicio</th><th>Reps</th><th>Kg</th><th>RPE</th><th></th></tr></thead>
@@ -833,10 +875,20 @@ function renderHistorial() {
               </tr>`).join("")}
             </tbody>
           </table>
+          <div class="row">
+            <button class="btn sec mini fijo" onclick="editarNota('${s.id}')">Nota</button>
+            <button class="btn peligro mini fijo" onclick="borrarSesionConfirm('${s.id}')">Borrar sesión</button>
+          </div>
         </div>
       </details>`;
-  }).join("") : '<p class="mut">Todavía no hay sesiones cerradas.</p>';
+  }).join("");
 }
+$("h-buscar").addEventListener("input", e => { histFiltro.q = e.target.value; histFiltro.n = 10; renderHistorial(); });
+$("h-grupos").addEventListener("click", e => {
+  const c = e.target.closest("[data-g]"); if (!c) return;
+  histFiltro.g = histFiltro.g === c.dataset.g ? "" : c.dataset.g; histFiltro.n = 10; renderHistorial();
+});
+$("h-mas").onclick = () => { histFiltro.n += 10; renderHistorial(); };
 
 
 // ============================================================

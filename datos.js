@@ -46,6 +46,7 @@ $("meta-borrar").onclick = () => {
   renderTodo();
 };
 function renderPeso() {
+  if (typeof renderPesoHero === "function") renderPesoHero();
   if (ajustes.meta && !$("meta-kg").value) $("meta-kg").value = ajustes.meta;
   $("pc-lista").innerHTML = db.peso.length ? db.peso.slice().reverse().slice(0, 14).map(p => `
     <div class="row filas">

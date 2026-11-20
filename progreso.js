@@ -461,26 +461,43 @@ function mostrarHito(titulo, sub) {
 }
 
 // ---------- Mapa corporal ----------
-function renderMapa() {
-  const corte = new Date(hoy()).getTime() - 7 * DIA_MS;
-  const vol = {};
-  sesionesConSeries().forEach(s => {
-    if (new Date(s.fecha).getTime() <= corte) return;
-    trab(s).forEach(x => { const g = grupoDe(x.ejercicio); vol[g] = (vol[g] || 0) + x.kg * x.reps; });
-  });
-  const max = Math.max(0, ...Object.values(vol));
-  document.querySelectorAll("#mapa-svg [data-g]").forEach(el => {
-    const r = max ? (vol[el.dataset.g] || 0) / max : 0;
-    el.style.fill = r ? "var(--cyan)" : "#ffffff";
-    el.style.fillOpacity = r ? (0.2 + 0.8 * r).toFixed(2) : "0.06";
-  });
-  const filas = Object.entries(vol).sort((a, b) => b[1] - a[1]);
-  $("mapa-lista").innerHTML = filas.length ? filas.map(([g, v]) => `
-    <div style="margin-top:8px">
-      <div class="row" style="margin:0"><b>${esc(g)}</b><span class="mut" style="margin-left:auto">${Math.round(v).toLocaleString("es-AR")} kg</span></div>
-      <div class="barra"><div style="width:${Math.round(v / max * 100)}%"></div></div>
-    </div>`).join("") : '<p class="mut">Sin entrenamientos en los últimos 7 días.</p>';
+// Cada músculo se pinta según sus series efectivas de los últimos 7 días contra el rango de referencia.
+let mapaSel = null;
+function datosMapa() {
+  return seriesPorMusculo(sesionesConSeries(), sumarDias(hoy(), -6), ej => musculosDe(ej, grupoDe(ej)));
 }
+function estadoMusculo(m, v) {
+  const [min, max] = rangoDe(m);
+  if (!v) return { k: "sin", t: "Sin trabajar", min, max };
+  return v < min ? { k: "bajo", t: "Poco", min, max } : v <= max ? { k: "ok", t: "En rango", min, max } : { k: "alto", t: "Mucho", min, max };
+}
+const fmtSeries = v => (Number.isInteger(v) ? String(v) : v.toFixed(1).replace(".", ","));
+function detalleMapa(m, res) {
+  const v = res[m].efectivas, e = estadoMusculo(m, v);
+  $("mapa-det").innerHTML = `<b>${esc(m)}</b> <span class="vg-est ${e.k === "sin" ? "bajo" : e.k}">${e.t}</span>
+    <span class="mut">${fmtSeries(v)} series efectivas · referencia ${e.min}–${e.max} por semana</span>`;
+}
+function renderMapa() {
+  const res = datosMapa();
+  document.querySelectorAll("#mapa-svg [data-m]").forEach(el => {
+    const m = el.dataset.m, v = res[m]?.efectivas || 0, e = estadoMusculo(m, v);
+    el.setAttribute("class", `mu mu-${e.k}${mapaSel === m ? " sel" : ""}`);
+    el.style.setProperty("--int", v ? (0.45 + 0.55 * Math.min(1, v / e.max)).toFixed(2) : "0");
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-label", `${m}: ${fmtSeries(v)} series, ${e.t}`);
+  });
+  if (mapaSel) detalleMapa(mapaSel, res);
+  const orden = MUSCULOS.map(m => [m, res[m].efectivas]);
+  const sin = orden.filter(([, v]) => !v).map(([m]) => m);
+  const top = orden.filter(([, v]) => v).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  $("mapa-lista").innerHTML = (top.length ? `<p class="mapa-fila"><b>Más trabajados</b>${top.map(([m, v]) => `<button class="chip" data-mu="${esc(m)}">${esc(m)} · ${fmtSeries(v)}</button>`).join("")}</p>` : '<p class="mut">Sin entrenamientos en los últimos 7 días.</p>')
+    + (sin.length && top.length ? `<p class="mapa-fila"><b>Sin trabajar</b>${sin.map(m => `<button class="chip" data-mu="${esc(m)}">${esc(m)}</button>`).join("")}</p>` : "");
+}
+function elegirMusculo(m) { mapaSel = mapaSel === m ? null : m; renderMapa(); if (!mapaSel) $("mapa-det").textContent = "Tocá un músculo para ver sus series."; haptico(8); }
+$("mapa-svg").addEventListener("click", e => { const el = e.target.closest("[data-m]"); if (el) elegirMusculo(el.dataset.m); });
+$("mapa-svg").addEventListener("keydown", e => { const el = e.target.closest("[data-m]"); if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); elegirMusculo(el.dataset.m); } });
+$("mapa-lista").addEventListener("click", e => { const c = e.target.closest("[data-mu]"); if (c) { mapaSel = null; elegirMusculo(c.dataset.mu); } });
 
 // ---------- Series por músculo (últimos 7 días) ----------
 // Series efectivas: 1 para el músculo principal y 0,5 para los que ayudan. Referencia general de 10 a 20 por semana.
